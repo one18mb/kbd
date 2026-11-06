@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KBD 输入法原型</title>
+  <link rel="preload" href="fonts/unifont.otf" as="font" type="font/otf" crossorigin>
+  <link rel="stylesheet" href="css/styles.css?v=4">
+</head>
+<body>
+  <header class="controls" id="controls">
+    <span class="brand">KBD 原型</span>
+    <button type="button" id="orientationBtn">横屏预览</button>
+    <button type="button" id="themeBtn">主题：跟随系统</button>
+    <button type="button" id="demoBtn">示例 ni'hao</button>
+    <button type="button" id="symbolBtn">符号层</button>
+    <button type="button" id="escapeBtn">转义</button>
+    <label>
+      安全边距
+      <input type="range" id="safeInset" min="0" max="24" step="1" value="16">
+      <span class="safe-label" id="safeLabel">安全边距 16</span>
+    </label>
+    <button type="button" id="showKbdBtn">收起键盘</button>
+    <button type="button" id="logBtn">事件日志</button>
+    <button type="button" id="resetBtn">重置</button>
+    <button type="button" id="fullscreenBtn">全屏</button>
+  </header>
+
+  <main class="stage-wrap" id="stageWrap">
+    <div id="device" data-orientation="portrait">
+      <div id="appScreen">
+        <div class="app-header">
+          <span>记事本</span>
+          <span class="app-mode" id="appMode">英</span>
+        </div>
+        <div id="editor"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+      <div id="keyboard"></div>
+      <div class="hidden-bar hidden" id="hiddenBar">
+        <button type="button">键盘已收起 · 点击显示</button>
+      </div>
+    </div>
+  </main>
+
+  <section class="event-log hidden" id="eventLog"></section>
+
+  <script src="js/data.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
+</body>
+</html>
