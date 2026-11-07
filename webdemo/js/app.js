@@ -13,7 +13,7 @@
   const state = {
     orientation: 'portrait',
     theme: 'auto',
-    safeInset: 16,
+    safeInset: 32,
     lang: 'en',
     layer: 'letters',
     symbolPage: 0,
@@ -97,7 +97,7 @@
       const mainTop = barH + g; // 36
       const mainH = 3 * keyH + 2 * g; // 320
       const funcTop = mainTop + mainH + g; // 360
-      const kbH = funcTop + keyH + R; // 464 + R，符号层也保持同高
+      const kbH = funcTop + keyH + R; // 464 + 32 = 496，符号层也保持同高
 
       return {
         orientation: 'portrait', W: W, H: H, R: R, g: g,
