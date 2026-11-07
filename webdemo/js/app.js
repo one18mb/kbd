@@ -173,7 +173,10 @@
     const wrap = els.stageWrap;
     const availW = wrap.clientWidth;
     const availH = wrap.clientHeight;
-    stageScale = fs ? 1 : Math.min(availW / metrics.W, availH / metrics.H, 1);
+    // 全屏时按视口贴合：DPR=2 的设备上 720 设计像素正好铺满 360 CSS 宽，
+    // 即 1 个设计像素 = 1 个物理像素。非全屏时最多 1:1，避免放大模糊。
+    const fit = Math.min(availW / metrics.W, availH / metrics.H);
+    stageScale = fs ? fit : Math.min(fit, 1);
     els.device.style.width = metrics.W + 'px';
     els.device.style.height = metrics.H + 'px';
     els.device.style.transform = 'translate(-50%, -50%) scale(' + stageScale + ')';
