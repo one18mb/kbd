@@ -6,39 +6,46 @@
 
 :root,
 :root[data-theme='dark'] {
-  --screen-bg: #000;
-  --app-bg: #111;
-  --kbd-bg: #151515;
-  --bar-bg: #1a1a1a;
-  --key-bg: #282828;
+  /* 4 色：背景、按键、主字、副字；反色只由这 4 色组合 */
+  --bg: #151515;
+  --key: #282828;
   --text: #fff;
-  --sub-text: #ccc;
-  --active-bg: #fff;
-  --active-text: #111;
-  --active-sub: #666;
-  --border: #2d2d2d;
-  --muted: #777;
-  --toast-bg: #eee;
-  --toast-text: #111;
-  --toast-warn: #ffb3a7;
+  --sub: #ccc;
+  --screen-bg: var(--bg);
+  --app-bg: var(--bg);
+  --kbd-bg: var(--bg);
+  --bar-bg: var(--bg);
+  --key-bg: var(--key);
+  --sub-text: var(--sub);
+  --active-bg: var(--text);
+  --active-text: var(--key);
+  --active-sub: var(--bg);
+  --border: var(--bg);
+  --muted: var(--sub);
+  --toast-bg: var(--text);
+  --toast-text: var(--bg);
+  --toast-warn: var(--text);
 }
 
 :root[data-theme='light'] {
-  --screen-bg: #e8e8e8;
-  --app-bg: #eee;
-  --kbd-bg: #ddd;
-  --bar-bg: #e2e2e2;
-  --key-bg: #fff;
+  --bg: #ddd;
+  --key: #fff;
   --text: #111;
-  --sub-text: #666;
-  --active-bg: #111;
-  --active-text: #fff;
-  --active-sub: #aaa;
-  --border: #c8c8c8;
-  --muted: #888;
-  --toast-bg: #111;
-  --toast-text: #fff;
-  --toast-warn: #b03020;
+  --sub: #666;
+  --screen-bg: var(--bg);
+  --app-bg: var(--bg);
+  --kbd-bg: var(--bg);
+  --bar-bg: var(--bg);
+  --key-bg: var(--key);
+  --sub-text: var(--sub);
+  --active-bg: var(--text);
+  --active-text: var(--key);
+  --active-sub: var(--bg);
+  --border: var(--bg);
+  --muted: var(--sub);
+  --toast-bg: var(--text);
+  --toast-text: var(--bg);
+  --toast-warn: var(--text);
 }
 
 * {
@@ -140,7 +147,6 @@ body {
   display: flex;
   align-items: center;
   padding: 0 20px;
-  border-bottom: 1px solid var(--border);
   color: var(--sub-text);
   font-family: 'Unifont', monospace;
   font-size: 32px;

@@ -96,11 +96,8 @@
       const barH = 32;
       const mainTop = barH + g; // 36
       const mainH = 3 * keyH + 2 * g; // 320
-      const lettersFuncTop = mainTop + mainH + g; // 360
-      const symbolsFuncTop = mainH + g; // 324
-      const isLetters = state.layer === 'letters';
-      const funcTop = isLetters ? lettersFuncTop : symbolsFuncTop;
-      const kbH = funcTop + keyH + R;
+      const funcTop = mainTop + mainH + g; // 360
+      const kbH = funcTop + keyH + R; // 464 + R，符号层也保持同高
 
       return {
         orientation: 'portrait', W: W, H: H, R: R, g: g,
@@ -110,34 +107,34 @@
         expTop: mainTop, expH: mainH, expRows: 9,
         expCols: 5, expCellW: 140, expGap: g, expSide: side, expRowH: S,
         pinyinX: 0, pinyinW: W,
-        symbolRows: [0, keyH + g, 2 * (keyH + g)], symbolK: K, symbolGap: g, symbolSide: side
+        symbolRows: [mainTop, mainTop + keyH + g, mainTop + 2 * (keyH + g)], symbolK: K, symbolGap: g, symbolSide: side
       };
     }
 
     const W = 1604;
     const H = 720;
-    const side = 48; // 横屏左右键盘边距，含安全区
-    const kbW = W - 2 * side; // 1508
+    const side = 84; // 横屏左右键盘边距，含安全区
+    const kbW = W - 2 * side; // 1436
     const K = 68;
-    const cols = 21;
-    const outerW = K;
+    const cols = 20;
+    const outerW = 2 * K + g; // 140，与竖屏双列同宽
     const letterCols = 5;
     const letterW = letterCols * K + (letterCols - 1) * g; // 356
-    const letterX = outerW + g; // 72
-    const midCols = 9;
-    const midW = midCols * K + (midCols - 1) * g; // 644
-    const midX = letterX + letterW + g; // 432
-    const rightX = midX + midW + g; // 1080
-    const outerRightX = rightX + letterW + g; // 1440
+    const letterX = outerW + g; // 144
+    const midCols = 6;
+    const midW = midCols * K + (midCols - 1) * g; // 428
+    const midX = letterX + letterW + g; // 504
+    const rightX = midX + midW + g; // 936
+    const outerRightX = rightX + letterW + g; // 1296
     const kbH = 3 * keyH + 2 * g; // 320
     const rowY = [0, keyH + g, 2 * (keyH + g)]; // 0,108,216
     const panelH = 2 * keyH + g; // 212
     const panelCellW = 3 * K + 2 * g; // 212
     const expH = kbH; // 320
     const expCellW = panelCellW; // 212
-    const symbolX = letterX; // 72
-    const symbolCols = 19;
-    const symbolW = symbolCols * K + (symbolCols - 1) * g; // 1364
+    const symbolX = letterX; // 144
+    const symbolCols = 16;
+    const symbolW = symbolCols * K + (symbolCols - 1) * g; // 1148
 
     return {
       orientation: 'landscape', W: W, H: H, R: R, g: g,
@@ -145,16 +142,16 @@
       outerW: outerW, letterX: letterX, letterW: letterW, rightX: rightX, outerRightX: outerRightX,
       midX: midX, midW: midW, rowY: rowY,
       panelX: midX, panelW: midW, panelH: panelH,
-      panelCellW: panelCellW, panelCols: 3, panelRows: 6, panelCellH: S,
+      panelCellW: panelCellW, panelCols: 2, panelRows: 6, panelCellH: S,
       panelRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g)],
       spaceX: midX, spaceY: rowY[2], spaceW: midW, spaceH: keyH,
       expX: midX, expY: 0, expW: midW, expH: expH,
-      expCols: 3, expCellW: expCellW, expRows: 9,
+      expCols: 2, expCellW: expCellW, expRows: 9,
       expRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g), 6 * (S + g), 7 * (S + g), 8 * (S + g)],
       expCellH: S,
       pinyinX: midX, pinyinW: midW,
       symbolX: symbolX, symbolW: symbolW, symbolCols: symbolCols, symbolCellW: K, symbolRows: 3, symbolRowY: rowY,
-      candidateNormal: 18, candidateExpanded: 27, symbolPageSlots: 57
+      candidateNormal: 12, candidateExpanded: 18, symbolPageSlots: 48
     };
   }
 
@@ -187,7 +184,7 @@
   }
 
   function symbolSlots() {
-    return state.orientation === 'portrait' ? 30 : 57;
+    return state.orientation === 'portrait' ? 30 : 48;
   }
 
   function symbolPageCount() {
@@ -327,6 +324,7 @@
     const m = metrics;
 
     if (state.layer === 'symbols') {
+      buildPortraitCandidateBar();
       buildPortraitSymbols();
     } else {
       buildPortraitCandidateBar();
