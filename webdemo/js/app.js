@@ -56,7 +56,7 @@
     [
       'device', 'stageWrap', 'appScreen', 'editor', 'appMode', 'toast',
       'keyboard', 'hiddenBar', 'controls', 'orientationBtn', 'themeBtn',
-      'demoBtn', 'symbolBtn', 'escapeBtn', 'safeInset', 'safeLabel', 'showKbdBtn',
+      'demoBtn', 'symbolBtn', 'escapeBtn', 'showKbdBtn',
       'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog'
     ].forEach(function (id) { els[id] = $(id); });
   }
@@ -112,29 +112,29 @@
     const W = 1604;
     const H = 720;
     const W_eff = W - 2 * R;
-    const F = 120;
+    // 符号中间区固定 1316（20×62 + 19×4），空格/候选面板固定 516；
+    // 安全边距由左右外列吸收，R=16 时 F=124。R 固定，不做运行时调整。
+    const symCols = 20;
+    const symCellW = 62;
+    const symW = symCols * symCellW + (symCols - 1) * g;
+    const F = (W_eff - symW - 2 * g) / 2;
     const K = 76;
     const keyH = 3 * S;
     const C = W_eff - 2 * F - 10 * K - 12 * g;
     const panelX = F + g + 5 * K + 5 * g;
     const panelH = 2 * keyH + g;
-    // 横屏候选格最小宽度 = 确认键宽 F = 120。
-    const panelCellW = Math.floor((C - 3 * g) / 4);
-    const panelLeftover = C - (4 * panelCellW + 3 * g);
-    const panelPadX = panelLeftover / 2;
-
-    const areaW = W_eff - F - g;
-    const expCols = Math.max(1, Math.floor((areaW + g) / (F + g)));
-    let expCellW = Math.floor((areaW - (expCols - 1) * g) / expCols);
-    if (expCellW % 2 !== 0) expCellW -= 1; // 让左右内边距严格相等
-    const expLeftover = areaW - (expCols * expCellW + (expCols - 1) * g);
-    const expPadX = expLeftover / 2;
+    // 横向固定 4px 间距：4 个候选 + 5 个 4px 间隙正好填满 C。
+    const panelCellW = Math.floor((C - 5 * g) / 4);
+    const panelPadX = (C - (4 * panelCellW + 3 * g)) / 2;
 
     const symX = F + g;
-    const symW = W_eff - 2 * (F + g);
-    const symCols = 20;
-    const symCellW = Math.floor((symW - (symCols - 1) * g) / symCols);
     const symPadX = (symW - (symCols * symCellW + (symCols - 1) * g)) / 2;
+
+    // 展开候选区与符号模式共用同一中间区间：x=symX、宽=symW、高=键盘高。
+    const expCols = Math.max(1, Math.floor((symW + g) / (F + g)));
+    let expCellW = Math.floor((symW - (expCols - 1) * g) / expCols);
+    if (expCellW % 2 !== 0) expCellW -= 1;
+    const expPadX = (symW - (expCols * expCellW + (expCols - 1) * g)) / 2;
 
     return {
       orientation: 'landscape', W: W, H: H, R: R, g: g,
@@ -143,10 +143,9 @@
       C: C, panelX: panelX, panelW: C, panelH: panelH,
       panelCellW: panelCellW, panelPadX: panelPadX,
       panelRowYs: [0, S, 2 * S, keyH + g, keyH + g + S, keyH + g + 2 * S],
-      areaW: areaW, expCols: expCols, expCellW: expCellW, expGap: g,
+      expX: symX, expW: symW, expCols: expCols, expCellW: expCellW, expGap: g,
       expPadX: expPadX, expPadY: 8, expRowH: 40,
       expPreeditY: 8, expRowsStart: 48, expPanelH: 3 * keyH + 2 * g,
-      returnX: W_eff - F, returnW: F,
       symX: symX, symW: symW, symCols: symCols, symCellW: symCellW, symPadX: symPadX
     };
   }
@@ -442,16 +441,20 @@
 
   function buildLandscapeExpanded() {
     const m = metrics;
+    for (let ri = 0; ri < 3; ri++) {
+      const y = ri * (m.keyH + m.g);
+      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
+      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
+    }
+    // 候选区间与符号模式的中间区间完全一致：x=symX、宽=symW、高=键盘高。
     const panel = document.createElement('div');
     panel.className = 'expanded-panel';
-    panel.style.left = '0px';
+    panel.style.left = m.expX + 'px';
     panel.style.top = '0px';
-    panel.style.width = m.areaW + 'px';
+    panel.style.width = m.expW + 'px';
     panel.style.height = m.expPanelH + 'px';
     els.keyboard.appendChild(panel);
     expandedPanelEl = panel;
-    // 确认键在展开态变成右侧整列“返回”。
-    makeKey('enter', m.returnX, 0, m.returnW, m.expPanelH);
   }
 
   // ---------- floating preedit ----------
@@ -1242,6 +1245,7 @@
     } else {
       const def = D.keys[id];
       key.classList.add('pressed');
+      key.classList.add('pressing');
       if (def && (def.long || def.repeat)) {
         session.timer = setTimeout(function () {
           session.timer = null;
@@ -1322,7 +1326,7 @@
     if (s.timer) { clearTimeout(s.timer); s.timer = null; }
     s.mode = 'slide';
     s.dir = dir;
-    s.keyEl.classList.remove('slide-up', 'slide-down', 'null-slide');
+    s.keyEl.classList.remove('pressing', 'slide-up', 'slide-down', 'null-slide');
     s.keyEl.classList.add(dir === 'up' ? 'slide-up' : 'slide-down');
     const label = keySlideText(def, dir);
     if (!label) s.keyEl.classList.add('null-slide');
@@ -1332,13 +1336,14 @@
     s.mode = 'pending';
     s.dir = null;
     s.keyEl.classList.remove('slide-up', 'slide-down', 'null-slide');
+    s.keyEl.classList.add('pressing');
   }
 
   function cancelSession(s) {
     if (!s) return;
     if (s.timer) clearTimeout(s.timer);
     if (s.repeatTimer) clearInterval(s.repeatTimer);
-    s.keyEl.classList.remove('pressed', 'slide-up', 'slide-down', 'null-slide');
+    s.keyEl.classList.remove('pressed', 'pressing', 'slide-up', 'slide-down', 'null-slide');
     sessions.delete(s.pointerId);
   }
 
@@ -1357,7 +1362,7 @@
     if (!s) return;
     if (s.timer) { clearTimeout(s.timer); s.timer = null; }
     if (s.repeatTimer) { clearInterval(s.repeatTimer); s.repeatTimer = null; }
-    s.keyEl.classList.remove('pressed', 'slide-up', 'slide-down', 'null-slide');
+    s.keyEl.classList.remove('pressed', 'pressing', 'slide-up', 'slide-down', 'null-slide');
     sessions.delete(e.pointerId);
     try { els.keyboard.releasePointerCapture(e.pointerId); } catch (err) {}
 
@@ -1404,8 +1409,6 @@
   function updateControlLabels() {
     els.orientationBtn.textContent = state.orientation === 'portrait' ? '横屏预览' : '竖屏预览';
     els.showKbdBtn.textContent = state.keyboardVisible ? '收起键盘' : '显示键盘';
-    els.safeLabel.textContent = '安全边距 ' + state.safeInset;
-    els.safeInset.value = String(state.safeInset);
     els.logBtn.textContent = state.logOpen ? '隐藏日志' : '事件日志';
   }
 
@@ -1465,12 +1468,6 @@
     });
     on(els.escapeBtn, 'click', function () {
       if (state.escape) exitEscape(); else enterEscape();
-    });
-    on(els.safeInset, 'input', function () {
-      state.safeInset = Number(els.safeInset.value);
-      if (els.safeLabel) els.safeLabel.textContent = '安全边距 ' + state.safeInset;
-      rebuildAll();
-      logEvent('安全边距 ' + state.safeInset);
     });
     on(els.showKbdBtn, 'click', function () {
       if (state.keyboardVisible) hideKeyboard(); else showKeyboard();

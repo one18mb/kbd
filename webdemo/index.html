@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>KBD 输入法原型</title>
   <link rel="preload" href="fonts/unifont.otf" as="font" type="font/otf" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <link rel="stylesheet" href="css/styles.css?v=7">
 </head>
 <body>
   <header class="controls" id="controls">
@@ -15,11 +15,6 @@
     <button type="button" id="demoBtn">示例 ni'hao</button>
     <button type="button" id="symbolBtn">符号层</button>
     <button type="button" id="escapeBtn">转义</button>
-    <label>
-      安全边距
-      <input type="range" id="safeInset" min="0" max="24" step="1" value="16">
-      <span class="safe-label" id="safeLabel">安全边距 16</span>
-    </label>
     <button type="button" id="showKbdBtn">收起键盘</button>
     <button type="button" id="logBtn">事件日志</button>
     <button type="button" id="resetBtn">重置</button>
@@ -40,7 +35,7 @@
 
   <section class="event-log hidden" id="eventLog"></section>
 
-  <script src="js/data.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/data.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>
