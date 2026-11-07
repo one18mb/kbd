@@ -537,7 +537,7 @@
       if (state.composing) return state.expanded ? '返回' : '展开';
       return '确认';
     }
-    if (id === 'space') return '空格';
+    if (id === 'space') return state.escape ? '\\' : '空格';
     if (def.kind === 'letter') return shiftActive() ? id.toUpperCase() : id;
     return (def.main && (def.main[state.lang] || def.main.en)) || '';
   }
@@ -566,11 +566,6 @@
       el.classList.remove('single');
       if (up) up.textContent = String(state.symbolPage + 1);
       if (down) down.textContent = String(symbolPageCount());
-    } else if (id === 'space') {
-      // 长按空格进入转义，用 \ 做动作标记；不占用滑动。
-      el.classList.remove('single');
-      if (up) up.textContent = '';
-      if (down) down.textContent = '\\';
     } else {
       if (up) up.textContent = keySlideText(def, 'up');
       if (down) down.textContent = keySlideText(def, 'down');
@@ -1236,30 +1231,33 @@
 
   function onPointerDown(e) {
     const key = e.target.closest('.key');
-    if (!key) return;
     if (sessions.size >= 2) return;
-    if (key.classList.contains('empty')) return;
-    e.preventDefault();
-    const id = key.dataset.id;
+    const isSymbolKey = !!key && key.classList.contains('symbol-key');
     const symbol = findSymbolSession(key);
-    if (!id && !symbol) return;
+    // 符号层：空白格与键盘背景也能滑动翻页。
+    const pageOnly = state.layer === 'symbols' && ((isSymbolKey && !symbol) || !key);
+    if (!key && !pageOnly) return;
+    if (key && !isSymbolKey && key.classList.contains('empty')) return;
+    const id = key ? key.dataset.id : null;
+    if (!id && !symbol && !pageOnly) return;
+    e.preventDefault();
     try { els.keyboard.setPointerCapture(e.pointerId); } catch (err) {}
     const session = {
       pointerId: e.pointerId,
-      keyEl: key,
+      keyEl: key || els.keyboard,
       keyId: id || null,
       symbol: symbol || null,
+      pageSwipe: !!symbol || pageOnly,
       startY: toLogicalY(e.clientY),
       startX: toLogicalX(e.clientX),
-      mode: symbol ? 'symbol-pending' : 'pending',
+      mode: (symbol || pageOnly) ? 'symbol-pending' : 'pending',
       dir: null,
       timer: null,
       repeatTimer: null,
       pressed: true
     };
-    if (symbol) {
-      session.mode = 'symbol-pending';
-      key.classList.add('pressed');
+    if (symbol || pageOnly) {
+      if (key) key.classList.add('pressed');
     } else {
       const def = D.keys[id];
       key.classList.add('pressed');
@@ -1314,7 +1312,7 @@
     if (!s) return;
     if (s.mode === 'long' || s.mode === 'repeat') return;
     const y = toLogicalY(e.clientY);
-    if (s.symbol) {
+    if (s.pageSwipe) {
       if (Math.abs(y - s.startY) >= SWIPE_PX) {
         s.mode = 'swipe';
         s.dir = y < s.startY ? 'up' : 'down';
@@ -1389,10 +1387,10 @@
       t: Date.now()
     };
 
-    if (s.symbol) {
+    if (s.pageSwipe) {
       if (s.mode === 'swipe') {
         flipSymbolPage(s.dir === 'up' ? 1 : -1);
-      } else {
+      } else if (s.symbol) {
         tapSymbol(s.symbol);
       }
       return;
