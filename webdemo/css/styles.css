@@ -225,6 +225,8 @@ body {
   max-width: 100%;
   padding: 0 2px;
   background: var(--bar-bg);
+  /* 向下填满拼音行与候选行之间的 4px 间隙，两块看起来连在一起 */
+  box-shadow: 0 4px 0 var(--bar-bg);
   color: var(--text);
   font-family: 'Unifont', monospace;
   font-size: 32px;

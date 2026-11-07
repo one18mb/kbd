@@ -183,6 +183,35 @@
     deviceRect = els.device.getBoundingClientRect();
   }
 
+  // 全屏时以实际视口方向为准，避免竖屏档铺满横屏。
+  function handleViewportChange() {
+    if (!metrics) return;
+    if (document.fullscreenElement) {
+      const wrap = els.stageWrap;
+      const want = wrap.clientWidth >= wrap.clientHeight ? 'landscape' : 'portrait';
+      if (want !== state.orientation && setOrientation(want)) return;
+    }
+    fitStage();
+  }
+
+  // 部分手机浏览器进入全屏会按“默认方向”重置为竖屏，这里锁定当前方向。
+  function lockViewportOrientation() {
+    const so = screen.orientation;
+    if (!so || !so.lock) return;
+    const type = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait';
+    try {
+      const p = so.lock(type);
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) {}
+  }
+
+  function unlockViewportOrientation() {
+    const so = screen.orientation;
+    if (so && so.unlock) {
+      try { so.unlock(); } catch (e) {}
+    }
+  }
+
   // ---------- small helpers ----------
 
   function shiftActive() {
@@ -537,6 +566,11 @@
       el.classList.remove('single');
       if (up) up.textContent = String(state.symbolPage + 1);
       if (down) down.textContent = String(symbolPageCount());
+    } else if (id === 'space') {
+      // 长按空格进入转义，用 \ 做动作标记；不占用滑动。
+      el.classList.remove('single');
+      if (up) up.textContent = '';
+      if (down) down.textContent = '\\';
     } else {
       if (up) up.textContent = keySlideText(def, 'up');
       if (down) down.textContent = keySlideText(def, 'down');
@@ -1396,15 +1430,21 @@
     els.logBtn.textContent = state.logOpen ? '隐藏日志' : '事件日志';
   }
 
-  function toggleOrientation() {
-    state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
-    if (state.orientation === 'landscape' && state.layer === 'symbols' && state.escape) {
+  function setOrientation(next) {
+    if (next === state.orientation) return false;
+    state.orientation = next;
+    if (next === 'landscape' && state.layer === 'symbols' && state.escape) {
       state.escape = false;
       state.escapeBuffer = '\\';
     }
     state.symbolPage = Math.min(state.symbolPage, symbolPageCount() - 1);
     if (state.symbolPage < 0) state.symbolPage = 0;
     rebuildAll();
+    return true;
+  }
+
+  function toggleOrientation() {
+    setOrientation(state.orientation === 'portrait' ? 'landscape' : 'portrait');
     logEvent('方向：' + (state.orientation === 'portrait' ? '竖屏' : '横屏'));
   }
 
@@ -1471,8 +1511,13 @@
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
-    window.addEventListener('resize', fitStage);
-    document.addEventListener('fullscreenchange', fitStage);
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('orientationchange', handleViewportChange);
+    document.addEventListener('fullscreenchange', function () {
+      if (document.fullscreenElement) lockViewportOrientation();
+      else unlockViewportOrientation();
+      handleViewportChange();
+    });
     if (media.addEventListener) {
       media.addEventListener('change', function () {
         if (state.theme === 'auto') applyTheme();
