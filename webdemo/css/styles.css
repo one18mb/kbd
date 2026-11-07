@@ -216,7 +216,6 @@ body {
   background: transparent;
   pointer-events: none;
   z-index: 4;
-  overflow: hidden;
   -webkit-font-smoothing: none;
 }
 
