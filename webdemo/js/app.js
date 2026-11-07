@@ -1,16 +1,15 @@
 (function () {
   'use strict';
 
-  const D = window.KBD;
-  const LONG_PRESS_MS = 500;
-  const REPEAT_MS = 60;
-  const SLIDE_ENTER = 25;
-  const SLIDE_EXIT = 12;
-  const SWIPE_PX = 30;
-  const MAX_ESCAPE = 16;
-  const S = 32; // 720p 下唯一主字号：16 / 32 / 64 三选一
+  // 应用层：持有全部状态与业务动作，串起 layout / view / input。
 
-  const state = {
+  var D = window.KBD;
+  var L = D.layout;
+  var V = D.view;
+
+  var MAX_ESCAPE = 16;
+
+  var state = {
     orientation: 'portrait',
     theme: 'auto',
     safeInset: 32,
@@ -34,775 +33,82 @@
     logOpen: false
   };
 
-  let metrics = null;
-  let keyEls = new Map();
-  let sessions = new Map();
-  let candidateBarEl = null;
-  let candidatePanelEl = null;
-  let expandedPanelEl = null;
-  let floatingPreeditEl = null;
-  let stageScale = 1;
-  let deviceRect = null;
-  let toastTimer = null;
-  let lastKeyTap = { id: null, t: 0 };
-  const media = window.matchMedia('(prefers-color-scheme: dark)');
-  const logEntries = [];
+  var metrics = null;
+  var lastTap = { tag: null, t: 0 };
+  var logEntries = [];
 
-  const els = {};
-
-  function $(id) { return document.getElementById(id); }
-
-  function cacheEls() {
-    [
-      'device', 'stageWrap', 'appScreen', 'editor', 'appMode', 'toast',
-      'keyboard', 'hiddenBar', 'controls', 'orientationBtn', 'themeBtn',
-      'demoBtn', 'symbolBtn', 'escapeBtn', 'showKbdBtn',
-      'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog'
-    ].forEach(function (id) { els[id] = $(id); });
-  }
-
-  // ---------- theme ----------
-
-  function resolvedTheme() {
-    if (state.theme === 'auto') return media.matches ? 'dark' : 'light';
-    return state.theme;
-  }
-
-  function applyTheme() {
-    const t = resolvedTheme();
-    document.documentElement.setAttribute('data-theme', t);
-    const label = state.theme === 'auto' ? '跟随系统' : (state.theme === 'dark' ? '深色' : '浅色');
-    els.themeBtn.textContent = '主题：' + label;
-  }
-
-  function cycleTheme() {
-    state.theme = state.theme === 'auto' ? 'dark' : (state.theme === 'dark' ? 'light' : 'auto');
-    applyTheme();
-  }
-
-  // ---------- metrics ----------
-
-  function computeMetrics() {
-    const R = state.safeInset;
-    const g = 4; // 字行距 = 键行距 = 键列距
-    const keyH = 3 * S + 2 * g; // 104
-
-    if (state.orientation === 'portrait') {
-      const W = 720;
-      const H = 1604;
-      const side = 2;
-      const K = 68;
-      const doubleW = 2 * K + g; // 140
-      const barH = 32;
-      const mainTop = barH + g; // 36
-      const mainH = 3 * keyH + 2 * g; // 320
-      const funcTop = mainTop + mainH + g; // 360
-      const kbH = funcTop + keyH + R; // 464 + 32 = 496，符号层也保持同高
-
-      return {
-        orientation: 'portrait', W: W, H: H, R: R, g: g,
-        kbW: W, kbLeft: 0, kbH: kbH, side: side, K: K, double: doubleW,
-        keyH: keyH, barH: barH, barGap: g, mainTop: mainTop, mainH: mainH, funcTop: funcTop,
-        candCellW: 140, candGap: g, candSide: side, candH: S,
-        expTop: mainTop, expH: mainH, expRows: 9,
-        expCols: 5, expCellW: 140, expGap: g, expSide: side, expRowH: S,
-        pinyinX: 0, pinyinW: W,
-        symbolRows: [mainTop, mainTop + keyH + g, mainTop + 2 * (keyH + g)], symbolK: K, symbolGap: g, symbolSide: side
-      };
-    }
-
-    const W = 1604;
-    const H = 720;
-    const side = 84; // 横屏左右键盘边距，含安全区
-    const kbW = W - 2 * side; // 1436
-    const K = 68;
-    const cols = 20;
-    const outerW = 2 * K + g; // 140，与竖屏双列同宽
-    const letterCols = 5;
-    const letterW = letterCols * K + (letterCols - 1) * g; // 356
-    const letterX = outerW + g; // 144
-    const midCols = 6;
-    const midW = midCols * K + (midCols - 1) * g; // 428
-    const midX = letterX + letterW + g; // 504
-    const rightX = midX + midW + g; // 936
-    const outerRightX = rightX + letterW + g; // 1296
-    const kbH = 3 * keyH + 2 * g; // 320
-    const rowY = [0, keyH + g, 2 * (keyH + g)]; // 0,108,216
-    const panelH = 2 * keyH + g; // 212
-    const panelCellW = 3 * K + 2 * g; // 212
-    const expH = kbH; // 320
-    const expCellW = panelCellW; // 212
-    const symbolX = letterX; // 144
-    const symbolCols = 16;
-    const symbolW = symbolCols * K + (symbolCols - 1) * g; // 1148
-
-    return {
-      orientation: 'landscape', W: W, H: H, R: R, g: g,
-      kbW: kbW, kbLeft: side, kbH: kbH, side: side, K: K, keyH: keyH, cols: cols,
-      outerW: outerW, letterX: letterX, letterW: letterW, rightX: rightX, outerRightX: outerRightX,
-      midX: midX, midW: midW, rowY: rowY,
-      panelX: midX, panelW: midW, panelH: panelH,
-      panelCellW: panelCellW, panelCols: 2, panelRows: 6, panelCellH: S,
-      panelRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g)],
-      spaceX: midX, spaceY: rowY[2], spaceW: midW, spaceH: keyH,
-      expX: midX, expY: 0, expW: midW, expH: expH,
-      expCols: 2, expCellW: expCellW, expRows: 9,
-      expRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g), 6 * (S + g), 7 * (S + g), 8 * (S + g)],
-      expCellH: S,
-      pinyinX: midX, pinyinW: midW,
-      symbolX: symbolX, symbolW: symbolW, symbolCols: symbolCols, symbolCellW: K, symbolRows: 3, symbolRowY: rowY,
-      candidateNormal: 12, candidateExpanded: 18, symbolPageSlots: 48
-    };
-  }
-
-  function toLogicalY(clientY) {
-    if (!deviceRect) return 0;
-    return (clientY - deviceRect.top) / stageScale;
-  }
-
-  function toLogicalX(clientX) {
-    if (!deviceRect) return 0;
-    return (clientX - deviceRect.left) / stageScale;
-  }
-
-  function fitStage() {
-    if (!metrics) return;
-    const fs = !!document.fullscreenElement;
-    if (els.controls) els.controls.classList.toggle('hidden', fs);
-    if (els.device) els.device.classList.toggle('actual', fs);
-    const wrap = els.stageWrap;
-    const availW = wrap.clientWidth;
-    const availH = wrap.clientHeight;
-    // 全屏时按视口贴合：DPR=2 的设备上 720 设计像素正好铺满 360 CSS 宽，
-    // 即 1 个设计像素 = 1 个物理像素。非全屏时最多 1:1，避免放大模糊。
-    const fit = Math.min(availW / metrics.W, availH / metrics.H);
-    stageScale = fs ? fit : Math.min(fit, 1);
-    els.device.style.width = metrics.W + 'px';
-    els.device.style.height = metrics.H + 'px';
-    els.device.style.transform = 'translate(-50%, -50%) scale(' + stageScale + ')';
-    deviceRect = els.device.getBoundingClientRect();
-  }
-
-  // 全屏时以实际视口方向为准，避免竖屏档铺满横屏。
-  function handleViewportChange() {
-    if (!metrics) return;
-    if (document.fullscreenElement) {
-      const wrap = els.stageWrap;
-      const want = wrap.clientWidth >= wrap.clientHeight ? 'landscape' : 'portrait';
-      if (want !== state.orientation && setOrientation(want)) return;
-    }
-    fitStage();
-  }
-
-  // 部分手机浏览器进入全屏会按“默认方向”重置为竖屏，这里锁定当前方向。
-  function lockViewportOrientation() {
-    const so = screen.orientation;
-    if (!so || !so.lock) return;
-    const type = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait';
-    try {
-      const p = so.lock(type);
-      if (p && p.catch) p.catch(function () {});
-    } catch (e) {}
-  }
-
-  function unlockViewportOrientation() {
-    const so = screen.orientation;
-    if (so && so.unlock) {
-      try { so.unlock(); } catch (e) {}
-    }
-  }
-
-  // ---------- small helpers ----------
-
-  function shiftActive() {
-    return state.mods.shift.active;
-  }
-
-  function symbolSlots() {
-    return state.orientation === 'portrait' ? 30 : 48;
-  }
-
-  function symbolPageCount() {
-    return Math.max(1, Math.ceil(D.symbols.length / symbolSlots()));
-  }
-
-  function showToast(msg, kind) {
-    if (!els.toast) return;
-    els.toast.textContent = msg;
-    els.toast.className = 'toast show' + (kind ? ' ' + kind : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () {
-      els.toast.className = 'toast';
-    }, 1600);
-  }
+  // ---------- 通用 ----------
 
   function logEvent(text) {
     logEntries.push({ t: new Date(), text: text });
     if (logEntries.length > 80) logEntries.shift();
-    renderLog();
+    V.renderLog(logEntries, state.logOpen);
   }
 
-  function renderLog() {
-    if (!els.eventLog) return;
-    if (!state.logOpen) {
-      els.eventLog.classList.add('hidden');
-      return;
-    }
-    els.eventLog.classList.remove('hidden');
-    els.eventLog.innerHTML = '';
-    logEntries.slice().reverse().forEach(function (e) {
-      const row = document.createElement('div');
-      row.className = 'log-row';
-      const time = e.t.toLocaleTimeString('zh-CN', { hour12: false });
-      row.textContent = time + '  ' + e.text;
-      els.eventLog.appendChild(row);
-    });
+  function markTap(tag) {
+    lastTap = { tag: tag, t: Date.now() };
   }
 
-  // ---------- build ----------
+  function isDuplicateTap(tag) {
+    return lastTap.tag === tag && Date.now() - lastTap.t < 500;
+  }
 
+  function symbolPageCount() {
+    return Math.max(1, Math.ceil(D.symbols.length / L.symbolSlots(state.orientation)));
+  }
+
+  // 结构变化：方向/层/展开/键盘显隐 → 重建键盘。
   function rebuildAll() {
-    metrics = computeMetrics();
-    const m = metrics;
-    els.device.style.width = m.W + 'px';
-    els.device.style.height = m.H + 'px';
-    els.device.setAttribute('data-orientation', m.orientation);
-    els.appScreen.style.bottom = (state.keyboardVisible ? m.kbH : 0) + 'px';
-    els.keyboard.style.left = m.kbLeft + 'px';
-    els.keyboard.style.width = m.kbW + 'px';
-    els.keyboard.style.height = m.kbH + 'px';
-    els.keyboard.style.display = state.keyboardVisible ? 'block' : 'none';
-    els.controls.classList.toggle('kbd-hidden', !state.keyboardVisible);
-    buildKeyboard();
-    renderEditor();
-    updateAppMode();
-    updateControlLabels();
-    fitStage();
+    metrics = L.compute(state.orientation, state.safeInset);
+    V.setMetrics(metrics);
+    V.applyFrame(state);
+    V.build(state);
+    V.renderEditor(state);
+    V.updateControlText(state);
+    V.fitStage();
   }
 
-  function buildKeyboard() {
-    els.keyboard.innerHTML = '';
-    keyEls.clear();
-    candidateBarEl = null;
-    candidatePanelEl = null;
-    expandedPanelEl = null;
-    floatingPreeditEl = null;
-    if (!state.keyboardVisible) return;
-    if (state.orientation === 'portrait') buildPortrait();
-    else buildLandscape();
-    renderCandidateContent();
-    updateAllKeyLabels();
-    updateAllKeyStates();
-  }
+  // 内容变化：标签/激活态/候选/拼音。
+  function refreshLabels() { V.updateLabels(state); }
+  function refreshStates() { V.updateStates(state); }
+  function refreshCandidates() { V.renderCandidates(state); }
 
-  function makeKey(id, x, y, w, h) {
-    const def = D.keys[id];
-    if (!def) return null;
-    const el = document.createElement('div');
-    el.className = 'key';
-    el.dataset.id = id;
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    el.style.width = w + 'px';
-    el.style.height = h + 'px';
-    el.innerHTML = '<span class="up"></span><span class="main"></span><span class="down"></span>';
-    el.setAttribute('role', 'button');
-    el.setAttribute('aria-label', ariaName(id, def));
-    if (!def.up && !def.down) el.classList.add('single');
-    el.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      const now = Date.now();
-      if (lastKeyTap.id === id && now - lastKeyTap.t < 500) return;
-      tapKey(def);
-    });
-    els.keyboard.appendChild(el);
-    keyEls.set(id, el);
-    return el;
-  }
-
-  function ariaName(id, def) {
-    const names = {
-      arrowUp: '上方向键', arrowDown: '下方向键',
-      arrowLeft: '左方向键', arrowRight: '右方向键',
-      shift: 'Shift', ctrl: 'Ctrl', alt: 'Alt',
-      lang: '中/英', space: '空格', backspace: '删除', enter: '确认'
-    };
-    if (names[id]) return names[id];
-    if (def.kind === 'letter') return id;
-    return (def.main && (def.main.en || def.main.zh)) || id;
-  }
-
-  function makeSymbolKey(sym, x, y, w, h) {
-    const el = document.createElement('div');
-    el.className = 'key single symbol-key' + (sym ? '' : ' empty');
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    el.style.width = w + 'px';
-    el.style.height = h + 'px';
-    el.innerHTML = '<span class="main"></span>';
-    if (sym) el.dataset.symbol = sym;
-    el.setAttribute('role', 'button');
-    if (sym) el.setAttribute('aria-label', '符号 ' + sym);
-    el.querySelector('.main').textContent = sym || '';
-    el.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      const tag = 'sym:' + (sym || '');
-      const now = Date.now();
-      if (lastKeyTap.id === tag && now - lastKeyTap.t < 500) return;
-      if (sym) tapSymbol(sym);
-    });
-    els.keyboard.appendChild(el);
-    return el;
-  }
-
-  function buildPortrait() {
-    const m = metrics;
-
-    if (state.layer === 'symbols') {
-      buildPortraitCandidateBar();
-      buildPortraitSymbols();
-    } else {
-      buildPortraitCandidateBar();
-      if (state.expanded) buildPortraitExpanded();
-      else buildPortraitLetters();
-    }
-
-    buildPortraitFunctionRow(m.funcTop);
-  }
-
-  function buildPortraitCandidateBar() {
-    const m = metrics;
-    const bar = document.createElement('div');
-    bar.className = 'candidate-bar';
-    bar.style.height = m.barH + 'px';
-    els.keyboard.appendChild(bar);
-    candidateBarEl = bar;
-  }
-
-  function buildPortraitLetters() {
-    const m = metrics;
-    D.portraitRows.slice(0, 3).forEach(function (row, ri) {
-      const y = m.mainTop + ri * (m.keyH + m.g);
-      row.forEach(function (id, ci) {
-        makeKey(id, m.side + ci * (m.K + m.g), y, m.K, m.keyH);
-      });
-    });
-  }
-
-  function buildPortraitSymbols() {
-    const m = metrics;
-    for (let r = 0; r < 3; r++) {
-      const y = m.symbolRows[r];
-      for (let c = 0; c < 10; c++) {
-        const idx = state.symbolPage * 30 + r * 10 + c;
-        const sym = idx < D.symbols.length ? D.symbols[idx] : '';
-        makeSymbolKey(sym, m.symbolSide + c * (m.symbolK + m.symbolGap), y, m.symbolK, m.keyH);
-      }
-    }
-  }
-
-  function buildPortraitExpanded() {
-    const m = metrics;
-    const panel = document.createElement('div');
-    panel.className = 'expanded-panel';
-    panel.style.left = '0px';
-    panel.style.top = m.expTop + 'px';
-    panel.style.width = m.W + 'px';
-    panel.style.height = m.expH + 'px';
-    els.keyboard.appendChild(panel);
-    expandedPanelEl = panel;
-  }
-
-  function buildPortraitFunctionRow(y) {
-    const m = metrics;
-    let x = m.side;
-    D.portraitRows[3].forEach(function (id) {
-      const def = D.keys[id];
-      const w = def.double ? m.double : m.K;
-      makeKey(id, x, y, w, m.keyH);
-      x += w + m.g;
-    });
-  }
-
-  function buildLandscape() {
-    if (state.layer === 'symbols') buildLandscapeSymbols();
-    else if (state.expanded) buildLandscapeExpanded();
-    else buildLandscapeLetters();
-  }
-
-  function makeLandscapeRow(ri) {
-    const m = metrics;
-    const y = m.rowY[ri];
-    makeKey(D.outerLeft[ri], 0, y, m.outerW, m.keyH);
-    D.landLeft[ri].forEach(function (id, ci) {
-      makeKey(id, m.letterX + ci * (m.K + m.g), y, m.K, m.keyH);
-    });
-    D.landRight[ri].forEach(function (id, ci) {
-      makeKey(id, m.rightX + ci * (m.K + m.g), y, m.K, m.keyH);
-    });
-    makeKey(D.outerRight[ri], m.outerRightX, y, m.outerW, m.keyH);
-  }
-
-  function buildLandscapeLetters() {
-    const m = metrics;
-    for (let ri = 0; ri < 3; ri++) makeLandscapeRow(ri);
-    makeKey('space', m.spaceX, m.spaceY, m.spaceW, m.spaceH);
-
-    const panel = document.createElement('div');
-    panel.className = 'candidate-panel';
-    panel.style.left = m.panelX + 'px';
-    panel.style.top = '0px';
-    panel.style.width = m.panelW + 'px';
-    panel.style.height = m.panelH + 'px';
-    els.keyboard.appendChild(panel);
-    candidatePanelEl = panel;
-  }
-
-  function buildLandscapeSymbols() {
-    const m = metrics;
-    for (let ri = 0; ri < 3; ri++) {
-      const y = m.rowY[ri];
-      makeKey(D.outerLeft[ri], 0, y, m.outerW, m.keyH);
-      makeKey(D.outerRight[ri], m.outerRightX, y, m.outerW, m.keyH);
-      for (let c = 0; c < m.symbolCols; c++) {
-        const idx = state.symbolPage * symbolSlots() + ri * m.symbolCols + c;
-        const sym = idx < D.symbols.length ? D.symbols[idx] : '';
-        makeSymbolKey(
-          sym,
-          m.symbolX + c * (m.symbolCellW + m.g),
-          y,
-          m.symbolCellW,
-          m.keyH
-        );
-      }
-    }
-  }
-
-  function buildLandscapeExpanded() {
-    const m = metrics;
-    for (let ri = 0; ri < 3; ri++) makeLandscapeRow(ri);
-    const panel = document.createElement('div');
-    panel.className = 'expanded-panel';
-    panel.style.left = m.expX + 'px';
-    panel.style.top = m.expY + 'px';
-    panel.style.width = m.expW + 'px';
-    panel.style.height = m.expH + 'px';
-    els.keyboard.appendChild(panel);
-    expandedPanelEl = panel;
-  }
-
-  // ---------- floating preedit ----------
-
-  function updateFloatingPreedit() {
-    if (!state.keyboardVisible) return;
-    const need = state.composing || state.escape;
-    if (!need) {
-      if (floatingPreeditEl) {
-        floatingPreeditEl.remove();
-        floatingPreeditEl = null;
-      }
-      return;
-    }
-    if (!floatingPreeditEl) {
-      floatingPreeditEl = document.createElement('div');
-      floatingPreeditEl.className = 'floating-preedit';
-      const span = document.createElement('span');
-      span.className = 'pinyin-text';
-      floatingPreeditEl.appendChild(span);
-      els.keyboard.appendChild(floatingPreeditEl);
-    }
-    if (state.orientation === 'landscape') {
-      floatingPreeditEl.style.left = metrics.pinyinX + 'px';
-      floatingPreeditEl.style.width = metrics.pinyinW + 'px';
-    } else {
-      floatingPreeditEl.style.left = '0px';
-      floatingPreeditEl.style.width = '100%';
-    }
-    let text = '';
-    if (state.composing) text = state.preedit;
-    else if (state.escape) text = state.escapeBuffer;
-    floatingPreeditEl.querySelector('.pinyin-text').textContent = text;
-  }
-
-  // ---------- labels / state ----------
-
-  function keyMainText(id) {
-    const def = D.keys[id];
-    if (!def) return '';
-    if (id === 'lang') {
-      if (state.layer === 'symbols') return '符';
-      return state.lang === 'zh' ? '中' : '英';
-    }
-    if (id === 'enter') {
-      if (state.composing) return state.expanded ? '返回' : '展开';
-      return '确认';
-    }
-    if (id === 'space') return state.escape ? '\\' : '空格';
-    if (def.kind === 'letter') return shiftActive() ? id.toUpperCase() : id;
-    return (def.main && (def.main[state.lang] || def.main.en)) || '';
-  }
-
-  function keySlideText(def, dir) {
-    const slide = dir === 'up' ? def.up : def.down;
-    if (!slide) return '';
-    const v = slide[state.lang] || slide.en;
-    return v || '';
-  }
-
-  function updateKeyLabel(id) {
-    const def = D.keys[id];
-    const el = keyEls.get(id);
-    if (!def || !el) return;
-    const main = el.querySelector('.main');
-    const up = el.querySelector('.up');
-    const down = el.querySelector('.down');
-
-    if (main) {
-      main.textContent = keyMainText(id);
-      main.style.fontSize = '';
-    }
-
-    if (id === 'lang' && state.layer === 'symbols') {
-      el.classList.remove('single');
-      if (up) up.textContent = String(state.symbolPage + 1);
-      if (down) down.textContent = String(symbolPageCount());
-    } else {
-      if (up) up.textContent = keySlideText(def, 'up');
-      if (down) down.textContent = keySlideText(def, 'down');
-      if (!def.up && !def.down) el.classList.add('single');
-    }
-  }
-
-  function updateAllKeyLabels() {
-    keyEls.forEach(function (el, id) { updateKeyLabel(id); });
-  }
-
-  function updateKeyState(id) {
-    const def = D.keys[id];
-    const el = keyEls.get(id);
-    if (!def || !el) return;
-    if (def.kind === 'modifier') {
-      const s = state.mods[def.mod];
-      el.classList.toggle('active', s.active);
-      el.classList.toggle('locked', s.locked);
-    }
-    if (id === 'lang') el.classList.toggle('active', state.layer === 'symbols');
-    if (id === 'space') el.classList.toggle('active', state.escape);
-  }
-
-  function updateAllKeyStates() {
-    keyEls.forEach(function (el, id) { updateKeyState(id); });
-  }
-
-  // ---------- candidate rendering ----------
-
-  function makeCandCell(parent, text, x, y, w, h) {
-    if (!parent || !text) return null;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'cand-cell';
-    b.style.left = x + 'px';
-    b.style.top = y + 'px';
-    b.style.width = w + 'px';
-    b.style.height = h + 'px';
-    const span = document.createElement('span');
-    span.className = 'cand-text';
-    span.textContent = text;
-    b.appendChild(span);
-    b.setAttribute('aria-label', '候选 ' + text);
-    b.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      commitCandidate(text);
-    });
-    parent.appendChild(b);
-    return b;
-  }
-
-  function escapePreview() {
-    const buf = state.escapeBuffer;
-    const body = buf.slice(1);
-    if (body === '') {
-      return {
-        help: true,
-        text: 'n 换行   t 制表   u Unicode   s 设置   j 简繁'
-      };
-    }
-    const cmd = D.escapeCommands[body];
-    if (cmd) {
-      return { valid: true, text: '→ ' + cmd.label, cmd: cmd };
-    }
-    let code = null;
-    const m4 = /^u([0-9a-fA-F]{4})$/.exec(body);
-    const mb = /^u\{([0-9a-fA-F]{1,6})\}$/.exec(body);
-    if (m4) code = parseInt(m4[1], 16);
-    else if (mb) code = parseInt(mb[1], 16);
-    if (code != null) {
-      if (code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)) {
-        const ch = String.fromCodePoint(code);
-        return { valid: true, text: '→ ' + ch, value: ch };
-      }
-      return { valid: false, text: '无效 Unicode' };
-    }
-    if (/^u/i.test(body)) return { valid: false, text: 'Unicode 需要 4 位或 {1–6} 位十六进制' };
-    if (body === '\\') return { valid: true, text: '→ \\', value: '\\' };
-    return { valid: false, text: '未知转义' };
-  }
-
-  function renderCandidateContent() {
-    if (candidateBarEl) renderPortraitCandidateBar();
-    if (candidatePanelEl) renderLandscapeCandidatePanel();
-    if (expandedPanelEl) renderExpandedPanel();
-    updateFloatingPreedit();
-  }
-
-  function renderPortraitCandidateBar() {
-    const bar = candidateBarEl;
-    const m = metrics;
-    bar.innerHTML = '';
-    if (!state.composing) return;
-    for (let i = 0; i < 5; i++) {
-      makeCandCell(
-        bar,
-        state.candidates[i],
-        m.candSide + i * (m.candCellW + m.candGap),
-        0,
-        m.candCellW,
-        m.candH
-      );
-    }
-  }
-
-  function renderLandscapeCandidatePanel() {
-    const panel = candidatePanelEl;
-    const m = metrics;
-    panel.innerHTML = '';
-    if (!state.composing) return;
-    for (let r = 0; r < m.panelRows; r++) {
-      for (let c = 0; c < m.panelCols; c++) {
-        const idx = r * m.panelCols + c;
-        makeCandCell(
-          panel,
-          state.candidates[idx],
-          c * (m.panelCellW + m.g),
-          m.panelRowY[r],
-          m.panelCellW,
-          m.panelCellH
-        );
-      }
-    }
-  }
-
-  function renderExpandedPanel() {
-    const panel = expandedPanelEl;
-    const m = metrics;
-    panel.innerHTML = '';
-
-    const bg = document.createElement('div');
-    bg.className = 'expanded-candidate-bg';
-    bg.style.left = '0px';
-    bg.style.top = '0px';
-    bg.style.width = '100%';
-    bg.style.height = m.expH + 'px';
-    panel.appendChild(bg);
-
-    if (state.orientation === 'portrait') {
-      // 顶部常驻候选行已显示前 5 个，展开区从第 6 个开始，补满 9 行。
-      for (let r = 0; r < m.expRows; r++) {
-        for (let c = 0; c < m.expCols; c++) {
-          const idx = 5 + r * m.expCols + c;
-          makeCandCell(
-            panel,
-            state.candidates[idx],
-            m.expSide + c * (m.expCellW + m.expGap),
-            r * (S + m.g),
-            m.expCellW,
-            S
-          );
-        }
-      }
-      return;
-    }
-
-    for (let r = 0; r < m.expRows; r++) {
-      for (let c = 0; c < m.expCols; c++) {
-        const idx = r * m.expCols + c;
-        makeCandCell(
-          panel,
-          state.candidates[idx],
-          c * (m.expCellW + m.g),
-          r * (S + m.g),
-          m.expCellW,
-          S
-        );
-      }
-    }
-  }
-
-  // ---------- editor ----------
-
-  function updateAppMode() {
-    if (!els.appMode) return;
-    els.appMode.textContent = '';
-  }
-
-  function appendTextNode(parent, text) {
-    if (text) parent.appendChild(document.createTextNode(text));
-  }
-
-  function renderEditor() {
-    const editor = els.editor;
-    editor.innerHTML = '';
-    const text = state.text;
-    const cursor = state.cursor;
-    const before = text.slice(0, cursor);
-    const after = text.slice(cursor);
-    appendTextNode(editor, before);
-    const caret = document.createElement('span');
-    caret.className = 'caret';
-    editor.appendChild(caret);
-    appendTextNode(editor, after);
-    requestAnimationFrame(function () {
-      const er = editor.getBoundingClientRect();
-      const cr = caret.getBoundingClientRect();
-      if (cr.bottom > er.bottom - 10) editor.scrollTop += cr.bottom - er.bottom + 40;
-      else if (cr.top < er.top + 10) editor.scrollTop -= er.top - cr.top + 40;
-    });
-  }
+  // ---------- 编辑器 ----------
 
   function insertText(str) {
     state.text = state.text.slice(0, state.cursor) + str + state.text.slice(state.cursor);
     state.cursor += str.length;
-    renderEditor();
+    V.renderEditor(state);
   }
 
   function prevCharIndex(text, idx) {
     if (idx <= 0) return 0;
-    const c = text.charCodeAt(idx - 1);
+    var c = text.charCodeAt(idx - 1);
     if (c >= 0xDC00 && c <= 0xDFFF && idx >= 2) return idx - 2;
     return idx - 1;
   }
 
   function nextCharIndex(text, idx) {
     if (idx >= text.length) return text.length;
-    const c = text.charCodeAt(idx);
+    var c = text.charCodeAt(idx);
     if (c >= 0xD800 && c <= 0xDBFF && idx + 1 < text.length) return idx + 2;
     return idx + 1;
   }
 
   function backspaceText() {
     if (state.cursor <= 0) return;
-    const p = prevCharIndex(state.text, state.cursor);
+    var p = prevCharIndex(state.text, state.cursor);
     state.text = state.text.slice(0, p) + state.text.slice(state.cursor);
     state.cursor = p;
-    renderEditor();
+    V.renderEditor(state);
   }
 
-  // ---------- pinyin ----------
+  // ---------- 拼音 ----------
 
   function lookupPinyin(raw) {
-    const exact = D.pinyin.find(function (e) { return e.p === raw; });
+    var exact = D.pinyin.find(function (e) { return e.p === raw; });
     if (exact) return { pre: exact.pre, c: exact.c.slice() };
-    const matches = D.pinyin.filter(function (e) { return e.p.indexOf(raw) === 0; });
+    var matches = D.pinyin.filter(function (e) { return e.p.indexOf(raw) === 0; });
     if (matches.length) {
       matches.sort(function (a, b) { return b.p.length - a.p.length; });
       return { pre: raw, c: matches[0].c.slice() };
@@ -811,13 +117,13 @@
   }
 
   function updateComposition() {
-    const wasExpanded = state.expanded;
+    var wasExpanded = state.expanded;
     if (!state.composing) {
       state.preedit = '';
       state.candidates = [];
       state.expanded = false;
     } else {
-      const r = lookupPinyin(state.composing);
+      var r = lookupPinyin(state.composing);
       state.preedit = r.pre;
       state.candidates = r.c;
     }
@@ -825,13 +131,12 @@
       rebuildAll();
       return;
     }
-    renderCandidateContent();
-    updateAllKeyLabels();
-    updateAppMode();
+    refreshCandidates();
+    refreshLabels();
   }
 
   function commitComposition(str) {
-    const wasExpanded = state.expanded;
+    var wasExpanded = state.expanded;
     insertText(str);
     state.composing = '';
     state.preedit = '';
@@ -841,9 +146,8 @@
       rebuildAll();
       return;
     }
-    renderCandidateContent();
-    updateAllKeyLabels();
-    updateAppMode();
+    refreshCandidates();
+    refreshLabels();
   }
 
   function commitCandidate(text) {
@@ -854,14 +158,13 @@
 
   function commitFirstCandidate() {
     if (!state.composing) return false;
-    const first = state.candidates[0] || state.composing;
-    commitComposition(first);
+    commitComposition(state.candidates[0] || state.composing);
     return true;
   }
 
   function appendPinyin(letter) {
     if (state.composing.length >= 40) {
-      showToast('拼音缓冲已达单行上限');
+      V.showToast('拼音缓冲已达单行上限');
       return;
     }
     state.composing += letter.toLowerCase();
@@ -884,25 +187,25 @@
     logEvent(v ? '展开候选' : '返回候选');
   }
 
-  // ---------- modifier state ----------
+  // ---------- 修饰键 ----------
 
   function clearTempMods() {
-    let changed = false;
+    var changed = false;
     Object.keys(state.mods).forEach(function (k) {
-      const s = state.mods[k];
+      var s = state.mods[k];
       if (s.active && !s.locked) {
         s.active = false;
         changed = true;
       }
     });
     if (changed) {
-      updateAllKeyLabels();
-      updateAllKeyStates();
+      refreshLabels();
+      refreshStates();
     }
   }
 
   function toggleModifier(name) {
-    const s = state.mods[name];
+    var s = state.mods[name];
     if (s.locked) {
       s.active = false;
       s.locked = false;
@@ -910,53 +213,76 @@
       s.active = !s.active;
       s.locked = false;
     }
-    updateAllKeyLabels();
-    updateAllKeyStates();
+    refreshLabels();
+    refreshStates();
   }
 
   function lockModifier(name) {
-    const s = state.mods[name];
+    var s = state.mods[name];
     s.active = true;
     s.locked = true;
-    updateAllKeyLabels();
-    updateAllKeyStates();
+    refreshLabels();
+    refreshStates();
   }
 
-  // ---------- escape ----------
+  // ---------- 转义 ----------
 
   function enterEscape() {
     if (state.composing) {
-      showToast('先上屏拼音');
+      V.showToast('先上屏拼音');
       return;
     }
     state.escape = true;
     state.escapeBuffer = '\\';
     clearTempMods();
-    updateAllKeyLabels();
-    updateAllKeyStates();
-    renderCandidateContent();
-    updateAppMode();
+    refreshLabels();
+    refreshStates();
+    refreshCandidates();
   }
 
   function exitEscape() {
     state.escape = false;
     state.escapeBuffer = '\\';
-    updateAllKeyLabels();
-    updateAllKeyStates();
-    renderCandidateContent();
-    updateAppMode();
+    refreshLabels();
+    refreshStates();
+    refreshCandidates();
   }
 
   function appendEscape(ch) {
     if (state.escapeBuffer.length >= MAX_ESCAPE) return;
     state.escapeBuffer += ch;
-    updateFloatingPreedit();
+    refreshCandidates();
+  }
+
+  function escapePreview() {
+    var body = state.escapeBuffer.slice(1);
+    if (body === '') {
+      return { help: true, text: 'n 换行   t 制表   u Unicode   s 设置   j 简繁' };
+    }
+    var cmd = D.escapeCommands[body];
+    if (cmd) return { valid: true, text: '→ ' + cmd.label, cmd: cmd };
+
+    var code = null;
+    var m4 = /^u([0-9a-fA-F]{4})$/.exec(body);
+    var mb = /^u\{([0-9a-fA-F]{1,6})\}$/.exec(body);
+    if (m4) code = parseInt(m4[1], 16);
+    else if (mb) code = parseInt(mb[1], 16);
+    if (code != null) {
+      if (code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)) {
+        var ch = String.fromCodePoint(code);
+        return { valid: true, text: '→ ' + ch, value: ch };
+      }
+      return { valid: false, text: '无效 Unicode' };
+    }
+    if (/^u/i.test(body)) return { valid: false, text: 'Unicode 需要 4 位或 {1–6} 位十六进制' };
+    if (body === '\\') return { valid: true, text: '→ \\', value: '\\' };
+    return { valid: false, text: '未知转义' };
   }
 
   function executeEscape() {
-    const info = escapePreview();
+    var info = escapePreview();
     if (!info.valid) return;
-    const cmd = info.cmd;
+    var cmd = info.cmd;
     if (cmd) {
       if (cmd.type === 'text') {
         insertText(cmd.value);
@@ -973,16 +299,16 @@
     exitEscape();
   }
 
-  // ---------- actions ----------
+  // ---------- 字符动作 ----------
 
-  function emitChar(label, source) {
+  function emitChar(label) {
     if (state.escape) {
       if (label.length === 1) {
         appendEscape(label);
         return;
       }
       if (label === 'Tab' || label === 'Esc') {
-        showToast('转义模式不接受 ' + label);
+        V.showToast('转义模式不接受 ' + label);
         return;
       }
       appendEscape(label);
@@ -994,7 +320,7 @@
       return;
     }
     if (state.composing) {
-      showToast('先上屏拼音');
+      V.showToast('先上屏拼音');
       clearTempMods();
       return;
     }
@@ -1003,7 +329,7 @@
       logEvent('Tab');
     } else if (label === 'Esc') {
       logEvent('Esc');
-      showToast('Esc 事件（原型）');
+      V.showToast('Esc 事件（原型）');
     } else {
       insertText(label);
       logEvent('字符：' + label);
@@ -1014,23 +340,23 @@
   function letterAction(id) {
     if (state.escape) {
       appendEscape(id);
-      if (shiftActive()) clearTempMods();
+      if (state.mods.shift.active) clearTempMods();
       return;
     }
-    const shift = shiftActive();
-    const ctrl = state.mods.ctrl.active;
-    const alt = state.mods.alt.active;
+    var shift = state.mods.shift.active;
+    var ctrl = state.mods.ctrl.active;
+    var alt = state.mods.alt.active;
     if (ctrl || alt) {
-      const chord = (ctrl ? 'Ctrl+' : '') + (alt ? 'Alt+' : '') + (shift ? id.toUpperCase() : id);
+      var chord = (ctrl ? 'Ctrl+' : '') + (alt ? 'Alt+' : '') + (shift ? id.toUpperCase() : id);
       logEvent(chord);
-      showToast(chord);
+      V.showToast(chord);
       clearTempMods();
       return;
     }
     if (state.lang === 'zh') {
       if (state.composing) {
         if (shift) {
-          showToast('先上屏拼音');
+          V.showToast('先上屏拼音');
           clearTempMods();
         } else {
           appendPinyin(id);
@@ -1046,7 +372,7 @@
       appendPinyin(id);
       return;
     }
-    const ch = shift ? id.toUpperCase() : id;
+    var ch = shift ? id.toUpperCase() : id;
     insertText(ch);
     logEvent('字母：' + ch);
     clearTempMods();
@@ -1054,46 +380,40 @@
 
   function navAction(dir) {
     if (state.composing || state.escape) {
-      showToast('先上屏拼音');
+      V.showToast('先上屏拼音');
       clearTempMods();
       return;
     }
     if (dir === 'left') state.cursor = prevCharIndex(state.text, state.cursor);
     else if (dir === 'right') state.cursor = nextCharIndex(state.text, state.cursor);
     else if (dir === 'up') {
-      const ls = state.text.lastIndexOf('\n', state.cursor - 1);
-      const lineStart = ls >= 0 ? ls + 1 : 0;
-      const col = state.cursor - lineStart;
+      var ls = state.text.lastIndexOf('\n', state.cursor - 1);
+      var lineStart = ls >= 0 ? ls + 1 : 0;
+      var col = state.cursor - lineStart;
       if (ls >= 0) {
-        const prevLineStart = state.text.lastIndexOf('\n', ls - 1) + 1;
+        var prevLineStart = state.text.lastIndexOf('\n', ls - 1) + 1;
         state.cursor = Math.min(prevLineStart + col, ls);
       } else state.cursor = 0;
     } else if (dir === 'down') {
-      const ls = state.text.lastIndexOf('\n', state.cursor - 1);
-      const lineStart = ls >= 0 ? ls + 1 : 0;
-      const col = state.cursor - lineStart;
-      const nextNl = state.text.indexOf('\n', state.cursor);
+      var ls2 = state.text.lastIndexOf('\n', state.cursor - 1);
+      var lineStart2 = ls2 >= 0 ? ls2 + 1 : 0;
+      var col2 = state.cursor - lineStart2;
+      var nextNl = state.text.indexOf('\n', state.cursor);
       if (nextNl >= 0) {
-        const nextStart = nextNl + 1;
-        const nextEnd = state.text.indexOf('\n', nextStart);
-        const end = nextEnd >= 0 ? nextEnd : state.text.length;
-        state.cursor = Math.min(nextStart + col, end);
+        var nextStart = nextNl + 1;
+        var nextEnd = state.text.indexOf('\n', nextStart);
+        var end = nextEnd >= 0 ? nextEnd : state.text.length;
+        state.cursor = Math.min(nextStart + col2, end);
       } else state.cursor = state.text.length;
     }
-    renderEditor();
+    V.renderEditor(state);
     clearTempMods();
   }
 
   function tapKey(def) {
-    const id = def.id;
-    if (def.kind === 'modifier') {
-      toggleModifier(def.mod);
-      return;
-    }
-    if (def.kind === 'lang') {
-      shortLang();
-      return;
-    }
+    var id = def.id;
+    if (def.kind === 'modifier') { toggleModifier(def.mod); return; }
+    if (def.kind === 'lang') { shortLang(); return; }
     if (def.kind === 'space') {
       if (state.escape) executeEscape();
       else if (state.composing) { commitFirstCandidate(); clearTempMods(); }
@@ -1104,7 +424,7 @@
       if (state.escape) {
         if (state.escapeBuffer.length > 1) {
           state.escapeBuffer = state.escapeBuffer.slice(0, -1);
-          updateFloatingPreedit();
+          refreshCandidates();
         }
       } else if (state.composing) deletePinyinOrChar();
       else backspaceText();
@@ -1112,7 +432,7 @@
       return;
     }
     if (def.kind === 'enter') {
-      if (state.escape) { showToast('转义模式中确认键无效'); return; }
+      if (state.escape) { V.showToast('转义模式中确认键无效'); return; }
       if (state.composing) {
         setExpanded(!state.expanded);
         clearTempMods();
@@ -1124,11 +444,9 @@
       return;
     }
     if (def.kind === 'nav') {
-      const ctrl = state.mods.ctrl.active;
-      const alt = state.mods.alt.active;
-      if (ctrl || alt) {
-        logEvent((ctrl ? 'Ctrl+' : '') + (alt ? 'Alt+' : '') + def.main.en);
-      }
+      var ctrl = state.mods.ctrl.active;
+      var alt = state.mods.alt.active;
+      if (ctrl || alt) logEvent((ctrl ? 'Ctrl+' : '') + (alt ? 'Alt+' : '') + def.main.en);
       navAction(def.dir);
       return;
     }
@@ -1136,30 +454,20 @@
   }
 
   function shortLang() {
-    if (state.layer === 'symbols') {
-      exitSymbolMode();
-      return;
-    }
-    if (state.composing) {
-      showToast('先上屏拼音');
-      return;
-    }
+    if (state.layer === 'symbols') { exitSymbolMode(); return; }
+    if (state.composing) { V.showToast('先上屏拼音'); return; }
     state.lang = state.lang === 'zh' ? 'en' : 'zh';
-    updateAllKeyLabels();
-    updateAllKeyStates();
-    renderCandidateContent();
-    updateAppMode();
+    refreshLabels();
+    refreshStates();
+    refreshCandidates();
     logEvent('切换语言：' + (state.lang === 'zh' ? '中文' : '英文'));
   }
 
   function enterSymbolMode() {
-    if (state.composing) {
-      showToast('先上屏拼音');
-      return;
-    }
+    if (state.composing) { V.showToast('先上屏拼音'); return; }
     if (state.escape && state.orientation === 'landscape') {
       exitEscape();
-      showToast('横屏符号模式与转义互斥');
+      V.showToast('横屏符号模式与转义互斥');
     }
     state.layer = 'symbols';
     state.symbolPage = 0;
@@ -1182,24 +490,14 @@
   }
 
   function longSpace() {
-    if (state.escape) {
-      exitEscape();
-      logEvent('退出转义');
-      return;
-    }
-    if (state.composing) {
-      showToast('先上屏拼音');
-      return;
-    }
+    if (state.escape) { exitEscape(); logEvent('退出转义'); return; }
+    if (state.composing) { V.showToast('先上屏拼音'); return; }
     enterEscape();
     logEvent('进入转义');
   }
 
   function longEnter() {
-    if (state.composing) {
-      showToast('先上屏拼音');
-      return;
-    }
+    if (state.composing) { V.showToast('先上屏拼音'); return; }
     hideKeyboard();
   }
 
@@ -1216,77 +514,22 @@
   }
 
   function flipSymbolPage(direction) {
-    const count = symbolPageCount();
+    var count = symbolPageCount();
     if (count <= 1) return;
     state.symbolPage = (state.symbolPage + direction + count) % count;
     rebuildAll();
     logEvent('符号页 → ' + (state.symbolPage + 1) + '/' + count);
   }
 
-  // ---------- pointer handling ----------
+  // ---------- 手势回调 ----------
 
-  function findSymbolSession(el) {
-    return el && el.classList.contains('symbol-key') && el.dataset.symbol;
-  }
-
-  function onPointerDown(e) {
-    const key = e.target.closest('.key');
-    if (sessions.size >= 2) return;
-    const isSymbolKey = !!key && key.classList.contains('symbol-key');
-    const symbol = findSymbolSession(key);
-    // 符号层：空白格与键盘背景也能滑动翻页。
-    const pageOnly = state.layer === 'symbols' && ((isSymbolKey && !symbol) || !key);
-    if (!key && !pageOnly) return;
-    if (key && !isSymbolKey && key.classList.contains('empty')) return;
-    const id = key ? key.dataset.id : null;
-    if (!id && !symbol && !pageOnly) return;
-    e.preventDefault();
-    try { els.keyboard.setPointerCapture(e.pointerId); } catch (err) {}
-    const session = {
-      pointerId: e.pointerId,
-      keyEl: key || els.keyboard,
-      keyId: id || null,
-      symbol: symbol || null,
-      pageSwipe: !!symbol || pageOnly,
-      startY: toLogicalY(e.clientY),
-      startX: toLogicalX(e.clientX),
-      mode: (symbol || pageOnly) ? 'symbol-pending' : 'pending',
-      dir: null,
-      timer: null,
-      repeatTimer: null,
-      pressed: true
-    };
-    if (symbol || pageOnly) {
-      if (key) key.classList.add('pressed');
-    } else {
-      const def = D.keys[id];
-      key.classList.add('pressed');
-      key.classList.add('pressing');
-      if (def && (def.long || def.repeat)) {
-        session.timer = setTimeout(function () {
-          session.timer = null;
-          if (session.mode !== 'pending') return;
-          if (def.repeat) {
-            session.mode = 'repeat';
-            doRepeatAction(def);
-            session.repeatTimer = setInterval(function () { doRepeatAction(def); }, REPEAT_MS);
-          } else {
-            session.mode = 'long';
-            doLongAction(def);
-          }
-        }, LONG_PRESS_MS);
-      }
-    }
-    sessions.set(e.pointerId, session);
-  }
-
-  function doRepeatAction(def) {
+  function repeatKey(def) {
     if (!def) return;
     if (def.kind === 'backspace') {
       if (state.escape) {
         if (state.escapeBuffer.length > 1) {
           state.escapeBuffer = state.escapeBuffer.slice(0, -1);
-          updateFloatingPreedit();
+          refreshCandidates();
         }
       } else if (state.composing) deletePinyinOrChar();
       else backspaceText();
@@ -1296,71 +539,15 @@
       if (state.composing || state.escape) return;
       if (def.dir === 'left') state.cursor = prevCharIndex(state.text, state.cursor);
       else if (def.dir === 'right') state.cursor = nextCharIndex(state.text, state.cursor);
-      renderEditor();
+      V.renderEditor(state);
     }
   }
 
-  function doLongAction(def) {
+  function longKey(def) {
     if (def.kind === 'modifier') lockModifier(def.mod);
     else if (def.kind === 'space') longSpace();
     else if (def.kind === 'lang') longLang();
     else if (def.kind === 'enter') longEnter();
-  }
-
-  function onPointerMove(e) {
-    const s = sessions.get(e.pointerId);
-    if (!s) return;
-    if (s.mode === 'long' || s.mode === 'repeat') return;
-    const y = toLogicalY(e.clientY);
-    if (s.pageSwipe) {
-      if (Math.abs(y - s.startY) >= SWIPE_PX) {
-        s.mode = 'swipe';
-        s.dir = y < s.startY ? 'up' : 'down';
-        s.keyEl.classList.remove('pressed');
-      }
-      return;
-    }
-    const def = D.keys[s.keyId];
-    if (!def || (!def.up && !def.down)) return;
-    const dy = y - s.startY;
-    if (s.mode === 'pending') {
-      if (dy <= -SLIDE_ENTER) setSlide(s, 'up');
-      else if (dy >= SLIDE_ENTER) setSlide(s, 'down');
-      return;
-    }
-    if (s.mode === 'slide') {
-      if (s.dir === 'up' && dy > -SLIDE_EXIT) clearSlide(s);
-      else if (s.dir === 'down' && dy < SLIDE_EXIT) clearSlide(s);
-      else if (s.dir === 'up' && dy >= SLIDE_ENTER) setSlide(s, 'down');
-      else if (s.dir === 'down' && dy <= -SLIDE_ENTER) setSlide(s, 'up');
-    }
-  }
-
-  function setSlide(s, dir) {
-    const def = D.keys[s.keyId];
-    if (!def) return;
-    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
-    s.mode = 'slide';
-    s.dir = dir;
-    s.keyEl.classList.remove('pressing', 'slide-up', 'slide-down', 'null-slide');
-    s.keyEl.classList.add(dir === 'up' ? 'slide-up' : 'slide-down');
-    const label = keySlideText(def, dir);
-    if (!label) s.keyEl.classList.add('null-slide');
-  }
-
-  function clearSlide(s) {
-    s.mode = 'pending';
-    s.dir = null;
-    s.keyEl.classList.remove('slide-up', 'slide-down', 'null-slide');
-    s.keyEl.classList.add('pressing');
-  }
-
-  function cancelSession(s) {
-    if (!s) return;
-    if (s.timer) clearTimeout(s.timer);
-    if (s.repeatTimer) clearInterval(s.repeatTimer);
-    s.keyEl.classList.remove('pressed', 'pressing', 'slide-up', 'slide-down', 'null-slide');
-    sessions.delete(s.pointerId);
   }
 
   function tapSymbol(sym) {
@@ -1373,60 +560,7 @@
     clearTempMods();
   }
 
-  function onPointerUp(e) {
-    const s = sessions.get(e.pointerId);
-    if (!s) return;
-    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
-    if (s.repeatTimer) { clearInterval(s.repeatTimer); s.repeatTimer = null; }
-    s.keyEl.classList.remove('pressed', 'pressing', 'slide-up', 'slide-down', 'null-slide');
-    sessions.delete(e.pointerId);
-    try { els.keyboard.releasePointerCapture(e.pointerId); } catch (err) {}
-
-    lastKeyTap = {
-      id: s.symbol ? ('sym:' + s.symbol) : s.keyId,
-      t: Date.now()
-    };
-
-    if (s.pageSwipe) {
-      if (s.mode === 'swipe') {
-        flipSymbolPage(s.dir === 'up' ? 1 : -1);
-      } else if (s.symbol) {
-        tapSymbol(s.symbol);
-      }
-      return;
-    }
-
-    if (s.mode === 'pending') {
-      const def = D.keys[s.keyId];
-      if (def) tapKey(def);
-      return;
-    }
-    if (s.mode === 'slide') {
-      const def = D.keys[s.keyId];
-      if (!def) return;
-      const label = keySlideText(def, s.dir);
-      if (!label) {
-        logEvent('空滑动：' + s.keyId);
-        clearTempMods();
-        return;
-      }
-      emitChar(label, 'slide');
-      return;
-    }
-  }
-
-  function onPointerCancel(e) {
-    const s = sessions.get(e.pointerId);
-    if (s) cancelSession(s);
-  }
-
-  // ---------- controls ----------
-
-  function updateControlLabels() {
-    els.orientationBtn.textContent = state.orientation === 'portrait' ? '横屏预览' : '竖屏预览';
-    els.showKbdBtn.textContent = state.keyboardVisible ? '收起键盘' : '显示键盘';
-    els.logBtn.textContent = state.logOpen ? '隐藏日志' : '事件日志';
-  }
+  // ---------- 方向 ----------
 
   function setOrientation(next) {
     if (next === state.orientation) return false;
@@ -1444,6 +578,44 @@
   function toggleOrientation() {
     setOrientation(state.orientation === 'portrait' ? 'landscape' : 'portrait');
     logEvent('方向：' + (state.orientation === 'portrait' ? '竖屏' : '横屏'));
+  }
+
+  // 全屏时以实际视口方向为准，避免竖屏档铺满横屏。
+  function handleViewportChange() {
+    if (!metrics) return;
+    if (document.fullscreenElement) {
+      var wrap = V.els.stageWrap;
+      var want = wrap.clientWidth >= wrap.clientHeight ? 'landscape' : 'portrait';
+      if (want !== state.orientation && setOrientation(want)) return;
+    }
+    V.fitStage();
+  }
+
+  // 部分手机浏览器进入全屏会按“默认方向”重置为竖屏，这里锁定当前方向。
+  function lockViewportOrientation() {
+    var so = screen.orientation;
+    if (!so || !so.lock) return;
+    var type = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait';
+    try {
+      var p = so.lock(type);
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) {}
+  }
+
+  function unlockViewportOrientation() {
+    var so = screen.orientation;
+    if (so && so.unlock) {
+      try { so.unlock(); } catch (e) {}
+    }
+  }
+
+  // ---------- 主题与演示 ----------
+
+  function applyTheme() { V.applyTheme(state); }
+
+  function cycleTheme() {
+    state.theme = state.theme === 'auto' ? 'dark' : (state.theme === 'dark' ? 'light' : 'auto');
+    applyTheme();
   }
 
   function demoNihao() {
@@ -1477,11 +649,15 @@
     logEvent('重置');
   }
 
+  // ---------- 绑定与启动 ----------
+
   function on(el, ev, fn, opts) {
     if (el) el.addEventListener(ev, fn, opts);
   }
 
   function bindControls() {
+    var els = V.els;
+
     on(els.orientationBtn, 'click', toggleOrientation);
     on(els.themeBtn, 'click', cycleTheme);
     on(els.demoBtn, 'click', demoNihao);
@@ -1496,19 +672,34 @@
     });
     on(els.logBtn, 'click', function () {
       state.logOpen = !state.logOpen;
-      renderLog();
-      updateControlLabels();
-      fitStage();
+      V.renderLog(logEntries, state.logOpen);
+      V.updateControlText(state);
+      V.fitStage();
     });
     on(els.resetBtn, 'click', resetAll);
     on(els.fullscreenBtn, 'click', function () {
       if (document.fullscreenElement) document.exitFullscreen();
       else document.documentElement.requestFullscreen().catch(function () {});
     });
-    on(els.keyboard, 'pointerdown', onPointerDown, { passive: false });
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerCancel);
+
+    window.KBD.input.bind({
+      root: els.keyboard,
+      toLogicalX: V.toLogicalX,
+      toLogicalY: V.toLogicalY,
+      getSlideLabel: function (id, dir) { return V.slideLabel(state, id, dir); },
+      allowPageSwipe: function () { return state.layer === 'symbols'; },
+      handlers: {
+        tapKey: tapKey,
+        longKey: longKey,
+        repeatKey: repeatKey,
+        slideKey: function (def, dir) { emitChar(V.slideLabel(state, def.id, dir)); },
+        emptySlide: function (def) { logEvent('空滑动：' + def.id); clearTempMods(); },
+        symbolTap: tapSymbol,
+        pageSwipe: flipSymbolPage,
+        markTap: markTap
+      }
+    }).attach();
+
     window.addEventListener('resize', handleViewportChange);
     window.addEventListener('orientationchange', handleViewportChange);
     document.addEventListener('fullscreenchange', function () {
@@ -1516,6 +707,8 @@
       else unlockViewportOrientation();
       handleViewportChange();
     });
+
+    var media = window.matchMedia('(prefers-color-scheme: dark)');
     if (media.addEventListener) {
       media.addEventListener('change', function () {
         if (state.theme === 'auto') applyTheme();
@@ -1523,14 +716,24 @@
     }
   }
 
-  // ---------- init ----------
-
   function init() {
-    cacheEls();
+    V.init();
+    V.setHandlers({
+      onKeyClick: function (id) {
+        if (isDuplicateTap(id)) return;
+        var def = D.keys[id];
+        if (def) tapKey(def);
+      },
+      onSymbolClick: function (sym) {
+        if (isDuplicateTap('sym:' + sym)) return;
+        tapSymbol(sym);
+      },
+      onCandidate: commitCandidate
+    });
     bindControls();
     applyTheme();
     rebuildAll();
-    renderLog();
+    V.renderLog(logEntries, state.logOpen);
     logEvent('KBD 原型启动');
   }
 
