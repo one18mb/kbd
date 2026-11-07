@@ -93,23 +93,19 @@
       const K = 68;
       const doubleW = 140;
       const keyH = 3 * S;
-      // 字母层保留一条 32px 候选行；符号层没有候选行，键盘整体少 36px。
+      // 14 行字：拼音浮动行 1 + 候选行 1 + 三行主键 9 + 功能行 3。
+      // 纵向不再留按键间距，保证 32px 行距连续；横向列间距仍为 g。
       const barH = state.layer === 'letters' ? S : 0;
-      const barGap = barH ? g : 0;
-      const upper = barH + barGap + 3 * keyH + 2 * g;
-      const kbH = upper + g + keyH + R;
-      // 展开：上区 332px 排 7 行（拼音 1 行 + 候选 6 行），行距 44，上下各 12。
-      const expRowH = 44;
-      const expPadY = state.layer === 'letters' ? (upper - 7 * expRowH) / 2 : 12;
+      const upper = barH + 3 * keyH;
+      const kbH = upper + keyH + R;
+      // 展开：前三行主键的 9 个文字行直接变成 9 行候选，候选行本身仍在顶部。
       return {
         orientation: 'portrait', W: W, H: H, R: R, g: g,
         kbW: W, kbLeft: 0, kbH: kbH, side: side, K: K, double: doubleW,
-        keyH: keyH, barH: barH, barGap: barGap, upper: upper,
+        keyH: keyH, barH: barH, upper: upper,
         candCellW: 140, candGap: g, candSide: side, candH: S,
-        expCols: 5, expCellW: 140, expGap: g, expSide: side,
-        expRowH: expRowH, expPadY: expPadY,
-        expPreeditY: expPadY, expRowsStart: expPadY + expRowH,
-        expPanelH: upper
+        expTop: barH, expH: 3 * keyH, expRows: 9,
+        expCols: 5, expCellW: 140, expGap: g, expSide: side, expRowH: S
       };
     }
 
@@ -237,7 +233,6 @@
     els.keyboard.style.width = m.kbW + 'px';
     els.keyboard.style.height = m.kbH + 'px';
     els.keyboard.style.display = state.keyboardVisible ? 'block' : 'none';
-    els.hiddenBar.classList.toggle('hidden', state.keyboardVisible);
     els.controls.classList.toggle('kbd-hidden', !state.keyboardVisible);
     buildKeyboard();
     renderEditor();
@@ -326,25 +321,28 @@
 
     if (state.layer === 'symbols') {
       buildPortraitSymbols();
-    } else if (state.expanded) {
-      buildPortraitExpanded();
     } else {
-      buildPortraitLetters();
+      buildPortraitCandidateBar();
+      if (state.expanded) buildPortraitExpanded();
+      else buildPortraitLetters();
     }
 
-    buildPortraitFunctionRow(m.upper + m.g);
+    buildPortraitFunctionRow(m.upper);
   }
 
-  function buildPortraitLetters() {
+  function buildPortraitCandidateBar() {
     const m = metrics;
     const bar = document.createElement('div');
     bar.className = 'candidate-bar';
     bar.style.height = m.barH + 'px';
     els.keyboard.appendChild(bar);
     candidateBarEl = bar;
+  }
 
+  function buildPortraitLetters() {
+    const m = metrics;
     D.portraitRows.slice(0, 3).forEach(function (row, ri) {
-      const y = m.barH + m.barGap + ri * (m.keyH + m.g);
+      const y = m.barH + ri * m.keyH;
       row.forEach(function (id, ci) {
         makeKey(id, m.side + ci * (m.K + m.g), y, m.K, m.keyH);
       });
@@ -354,7 +352,7 @@
   function buildPortraitSymbols() {
     const m = metrics;
     for (let r = 0; r < 3; r++) {
-      const y = r * (m.keyH + m.g);
+      const y = r * m.keyH;
       for (let c = 0; c < 10; c++) {
         const idx = state.symbolPage * 30 + r * 10 + c;
         const sym = idx < D.symbols.length ? D.symbols[idx] : '';
@@ -368,9 +366,9 @@
     const panel = document.createElement('div');
     panel.className = 'expanded-panel';
     panel.style.left = '0px';
-    panel.style.top = '0px';
+    panel.style.top = m.expTop + 'px';
     panel.style.width = m.W + 'px';
-    panel.style.height = m.expPanelH + 'px';
+    panel.style.height = m.expH + 'px';
     els.keyboard.appendChild(panel);
     expandedPanelEl = panel;
   }
@@ -460,7 +458,8 @@
 
   function updateFloatingPreedit() {
     if (!state.keyboardVisible) return;
-    const need = !state.expanded && (state.composing || state.escape);
+    const inLandscapeExpanded = state.expanded && state.orientation === 'landscape';
+    const need = (state.composing || state.escape) && !inLandscapeExpanded;
     if (!need) {
       if (floatingPreeditEl) {
         floatingPreeditEl.remove();
@@ -471,22 +470,22 @@
     if (!floatingPreeditEl) {
       floatingPreeditEl = document.createElement('div');
       floatingPreeditEl.className = 'floating-preedit';
+      const span = document.createElement('span');
+      span.className = 'pinyin-text';
+      floatingPreeditEl.appendChild(span);
       els.keyboard.appendChild(floatingPreeditEl);
     }
-    floatingPreeditEl.classList.remove('small');
-    let text = '';
-    if (state.composing) {
-      text = state.preedit;
-    } else if (state.escape) {
-      const info = escapePreview();
-      if (state.layer === 'symbols') {
-        text = info.text;
-        if (info.help || !info.valid) floatingPreeditEl.classList.add('small');
-      } else {
-        text = state.escapeBuffer;
-      }
+    if (state.orientation === 'landscape') {
+      floatingPreeditEl.style.left = metrics.panelX + 'px';
+      floatingPreeditEl.style.width = metrics.panelW + 'px';
+    } else {
+      floatingPreeditEl.style.left = '0px';
+      floatingPreeditEl.style.width = '100%';
     }
-    floatingPreeditEl.textContent = text;
+    let text = '';
+    if (state.composing) text = state.preedit;
+    else if (state.escape) text = state.escapeBuffer;
+    floatingPreeditEl.querySelector('.pinyin-text').textContent = text;
   }
 
   // ---------- labels / state ----------
@@ -502,10 +501,7 @@
       if (state.composing) return state.expanded ? '返回' : '展开';
       return '确认';
     }
-    if (id === 'space') {
-      if (state.escape) return state.escapeBuffer;
-      return '空格';
-    }
+    if (id === 'space') return '空格';
     if (def.kind === 'letter') return shiftActive() ? id.toUpperCase() : id;
     return (def.main && (def.main[state.lang] || def.main.en)) || '';
   }
@@ -528,24 +524,15 @@
     if (main) {
       main.textContent = keyMainText(id);
       main.style.fontSize = '';
-      if (id === 'space' && state.escape) {
-        main.style.fontSize = state.orientation === 'portrait' ? '16px' : '';
-      }
     }
 
     if (id === 'lang' && state.layer === 'symbols') {
       el.classList.remove('single');
-      if (up) up.textContent = '';
-      if (down) {
-        down.textContent = (state.symbolPage + 1) + '/' + symbolPageCount();
-        down.classList.add('tiny');
-      }
+      if (up) up.textContent = String(state.symbolPage + 1);
+      if (down) down.textContent = String(symbolPageCount());
     } else {
       if (up) up.textContent = keySlideText(def, 'up');
-      if (down) {
-        down.textContent = keySlideText(def, 'down');
-        down.classList.remove('tiny');
-      }
+      if (down) down.textContent = keySlideText(def, 'down');
       if (!def.up && !def.down) el.classList.add('single');
     }
   }
@@ -595,18 +582,6 @@
     return b;
   }
 
-  function makeEscapeLine(parent, text, x, y, w, h, small) {
-    const d = document.createElement('div');
-    d.className = 'escape-line' + (small ? ' small' : '');
-    d.style.left = x + 'px';
-    d.style.top = y + 'px';
-    d.style.width = w + 'px';
-    d.style.height = h + 'px';
-    d.textContent = text;
-    parent.appendChild(d);
-    return d;
-  }
-
   function escapePreview() {
     const buf = state.escapeBuffer;
     const body = buf.slice(1);
@@ -648,11 +623,6 @@
     const bar = candidateBarEl;
     const m = metrics;
     bar.innerHTML = '';
-    if (state.escape) {
-      const info = escapePreview();
-      makeEscapeLine(bar, info.text, 0, 0, m.W, m.candH, info.help || !info.valid);
-      return;
-    }
     if (!state.composing) return;
     for (let i = 0; i < 5; i++) {
       makeCandCell(
@@ -670,16 +640,6 @@
     const panel = candidatePanelEl;
     const m = metrics;
     panel.innerHTML = '';
-    if (state.escape) {
-      const info = escapePreview();
-      if (info.help || !info.valid) {
-        makeEscapeLine(panel, info.text, 0, 0, m.panelW, S, true);
-      } else {
-        makeEscapeLine(panel, info.text, 0, 0, m.panelW, S, false);
-        makeEscapeLine(panel, 'n 换行   t 制表   u Unicode   s 设置', 0, S, m.panelW, S, true);
-      }
-      return;
-    }
     if (!state.composing) return;
     for (let r = 0; r < 6; r++) {
       for (let c = 0; c < 4; c++) {
@@ -701,43 +661,63 @@
     const m = metrics;
     panel.innerHTML = '';
 
+    if (state.orientation === 'portrait') {
+      const bg = document.createElement('div');
+      bg.className = 'expanded-candidate-bg';
+      bg.style.left = '0px';
+      bg.style.top = '0px';
+      bg.style.width = '100%';
+      bg.style.height = m.expH + 'px';
+      panel.appendChild(bg);
+
+      // 顶部常驻候选行已显示前 5 个，展开区从第 6 个开始，补满 9 行。
+      for (let r = 0; r < m.expRows; r++) {
+        for (let c = 0; c < m.expCols; c++) {
+          const idx = 5 + r * m.expCols + c;
+          makeCandCell(
+            panel,
+            state.candidates[idx],
+            m.expSide + c * (m.expCellW + m.expGap),
+            r * m.expRowH,
+            m.expCellW,
+            m.expRowH
+          );
+        }
+      }
+      return;
+    }
+
     const pre = document.createElement('div');
     pre.className = 'expanded-preedit';
     pre.style.left = '0px';
     pre.style.top = m.expPreeditY + 'px';
     pre.style.width = '100%';
     pre.style.height = m.expRowH + 'px';
-    pre.style.lineHeight = m.expRowH + 'px';
-    pre.textContent = state.preedit || state.composing;
+    const preText = document.createElement('span');
+    preText.className = 'pinyin-text';
+    preText.textContent = state.preedit || state.composing;
+    pre.appendChild(preText);
     panel.appendChild(pre);
 
-    if (state.orientation === 'portrait') {
-      for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < m.expCols; c++) {
-          const idx = r * m.expCols + c;
-          makeCandCell(
-            panel,
-            state.candidates[idx],
-            m.expSide + c * (m.expCellW + m.expGap),
-            m.expRowsStart + r * m.expRowH,
-            m.expCellW,
-            m.expRowH
-          );
-        }
-      }
-    } else {
-      for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < m.expCols; c++) {
-          const idx = r * m.expCols + c;
-          makeCandCell(
-            panel,
-            state.candidates[idx],
-            m.expPadX + c * (m.expCellW + m.expGap),
-            m.expRowsStart + r * m.expRowH,
-            m.expCellW,
-            m.expRowH
-          );
-        }
+    const bg = document.createElement('div');
+    bg.className = 'expanded-candidate-bg';
+    bg.style.left = '0px';
+    bg.style.top = m.expRowsStart + 'px';
+    bg.style.width = '100%';
+    bg.style.height = (6 * m.expRowH) + 'px';
+    panel.appendChild(bg);
+
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < m.expCols; c++) {
+        const idx = r * m.expCols + c;
+        makeCandCell(
+          panel,
+          state.candidates[idx],
+          m.expPadX + c * (m.expCellW + m.expGap),
+          m.expRowsStart + r * m.expRowH,
+          m.expCellW,
+          m.expRowH
+        );
       }
     }
   }
@@ -745,11 +725,8 @@
   // ---------- editor ----------
 
   function updateAppMode() {
-    let mode = state.lang === 'zh' ? '中' : '英';
-    if (state.layer === 'symbols') mode += ' · 符 ' + (state.symbolPage + 1) + '/' + symbolPageCount();
-    if (state.escape) mode += ' · 转义';
-    if (state.composing) mode += state.expanded ? ' · 展开' : ' · 候选';
-    els.appMode.textContent = mode;
+    if (!els.appMode) return;
+    els.appMode.textContent = '';
   }
 
   function appendTextNode(parent, text) {
@@ -761,26 +738,13 @@
     editor.innerHTML = '';
     const text = state.text;
     const cursor = state.cursor;
-    if (!text && !state.composing) {
-      const ph = document.createElement('span');
-      ph.className = 'placeholder';
-      ph.textContent = '点击键盘输入…';
-      editor.appendChild(ph);
-    }
     const before = text.slice(0, cursor);
     const after = text.slice(cursor);
     appendTextNode(editor, before);
-    if (state.composing) {
-      const comp = document.createElement('span');
-      comp.className = 'composition';
-      comp.textContent = state.preedit;
-      editor.appendChild(comp);
-    }
     const caret = document.createElement('span');
     caret.className = 'caret';
     editor.appendChild(caret);
     appendTextNode(editor, after);
-    updateAppMode();
     requestAnimationFrame(function () {
       const er = editor.getBoundingClientRect();
       const cr = caret.getBoundingClientRect();
@@ -968,31 +932,22 @@
   }
 
   function appendEscape(ch) {
-    if (state.escapeBuffer.length >= MAX_ESCAPE) {
-      showToast('转义缓冲已满');
-      return;
-    }
+    if (state.escapeBuffer.length >= MAX_ESCAPE) return;
     state.escapeBuffer += ch;
-    updateAllKeyLabels();
-    renderCandidateContent();
+    updateFloatingPreedit();
   }
 
   function executeEscape() {
     const info = escapePreview();
-    if (!info.valid) {
-      showToast(info.text || '未知转义', 'warn');
-      return;
-    }
+    if (!info.valid) return;
     const cmd = info.cmd;
     if (cmd) {
       if (cmd.type === 'text') {
         insertText(cmd.value);
         logEvent('转义：' + info.text);
       } else if (cmd.value === 'settings') {
-        showToast('设置入口（原型控制栏）');
         logEvent('转义：设置');
       } else if (cmd.value === 'variant') {
-        showToast('简繁切换（预留）');
         logEvent('转义：简繁');
       }
     } else if (info.value != null) {
@@ -1133,8 +1088,7 @@
       if (state.escape) {
         if (state.escapeBuffer.length > 1) {
           state.escapeBuffer = state.escapeBuffer.slice(0, -1);
-          updateAllKeyLabels();
-          renderCandidateContent();
+          updateFloatingPreedit();
         }
       } else if (state.composing) deletePinyinOrChar();
       else backspaceText();
@@ -1312,8 +1266,7 @@
       if (state.escape) {
         if (state.escapeBuffer.length > 1) {
           state.escapeBuffer = state.escapeBuffer.slice(0, -1);
-          updateAllKeyLabels();
-          renderCandidateContent();
+          updateFloatingPreedit();
         }
       } else if (state.composing) deletePinyinOrChar();
       else backspaceText();
@@ -1522,10 +1475,6 @@
     on(els.showKbdBtn, 'click', function () {
       if (state.keyboardVisible) hideKeyboard(); else showKeyboard();
     });
-    if (els.hiddenBar) {
-      const hbBtn = els.hiddenBar.querySelector('button');
-      if (hbBtn) on(hbBtn, 'click', showKeyboard);
-    }
     on(els.logBtn, 'click', function () {
       state.logOpen = !state.logOpen;
       renderLog();
@@ -1547,9 +1496,6 @@
         if (state.theme === 'auto') applyTheme();
       });
     }
-    on(els.editor, 'click', function () {
-      showToast('使用下方键盘输入');
-    });
   }
 
   // ---------- init ----------
