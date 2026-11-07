@@ -2,13 +2,13 @@
   'use strict';
 
   const D = window.KBD;
-  const PAGE_SIZE = 5;
   const LONG_PRESS_MS = 500;
   const REPEAT_MS = 60;
   const SLIDE_ENTER = 25;
   const SLIDE_EXIT = 12;
   const SWIPE_PX = 30;
   const MAX_ESCAPE = 16;
+  const S = 32; // 720p 下唯一主字号：16 / 32 / 64 三选一
 
   const state = {
     orientation: 'portrait',
@@ -26,8 +26,8 @@
     },
     composing: '',
     candidates: [],
-    candPage: 0,
     preedit: '',
+    expanded: false,
     text: '',
     cursor: 0,
     keyboardVisible: true,
@@ -39,10 +39,11 @@
   let sessions = new Map();
   let candidateBarEl = null;
   let candidatePanelEl = null;
+  let expandedPanelEl = null;
+  let floatingPreeditEl = null;
   let stageScale = 1;
   let deviceRect = null;
   let toastTimer = null;
-  let suppressCandClick = false;
   let lastKeyTap = { id: null, t: 0 };
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   const logEntries = [];
@@ -83,35 +84,74 @@
 
   function computeMetrics() {
     const R = state.safeInset;
+    const g = 4;
+
     if (state.orientation === 'portrait') {
       const W = 720;
       const H = 1604;
-      const barH = 120;
-      const keyH = 120;
-      const gap = 4;
       const side = 2;
       const K = 68;
       const doubleW = 140;
-      const kbH = barH + 4 * keyH + 3 * gap + R;
+      const keyH = 3 * S;
+      // 字母层保留一条 32px 候选行；符号层没有候选行，键盘整体少 36px。
+      const barH = state.layer === 'letters' ? S : 0;
+      const barGap = barH ? g : 0;
+      const upper = barH + barGap + 3 * keyH + 2 * g;
+      const kbH = upper + g + keyH + R;
+      // 展开：上区 332px 排 7 行（拼音 1 行 + 候选 6 行），行距 44，上下各 12。
+      const expRowH = 44;
+      const expPadY = state.layer === 'letters' ? (upper - 7 * expRowH) / 2 : 12;
       return {
-        orientation: 'portrait', W: W, H: H, kbW: W, kbLeft: 0, kbH: kbH,
-        barH: barH, keyH: keyH, gap: gap, side: side, K: K, double: doubleW, R: R
+        orientation: 'portrait', W: W, H: H, R: R, g: g,
+        kbW: W, kbLeft: 0, kbH: kbH, side: side, K: K, double: doubleW,
+        keyH: keyH, barH: barH, barGap: barGap, upper: upper,
+        candCellW: 140, candGap: g, candSide: side, candH: S,
+        expCols: 5, expCellW: 140, expGap: g, expSide: side,
+        expRowH: expRowH, expPadY: expPadY,
+        expPreeditY: expPadY, expRowsStart: expPadY + expRowH,
+        expPanelH: upper
       };
     }
+
     const W = 1604;
     const H = 720;
     const W_eff = W - 2 * R;
     const F = 120;
     const K = 76;
-    const keyH = 100;
-    const gap = 4;
-    const C = W_eff - 2 * F - 10 * K - 12 * gap;
-    const panelW = C - (K + gap);
-    const kbH = 3 * keyH + 2 * gap;
+    const keyH = 3 * S;
+    const C = W_eff - 2 * F - 10 * K - 12 * g;
+    const panelX = F + g + 5 * K + 5 * g;
+    const panelH = 2 * keyH + g;
+    // 横屏候选格最小宽度 = 确认键宽 F = 120。
+    const panelCellW = Math.floor((C - 3 * g) / 4);
+    const panelLeftover = C - (4 * panelCellW + 3 * g);
+    const panelPadX = panelLeftover / 2;
+
+    const areaW = W_eff - F - g;
+    const expCols = Math.max(1, Math.floor((areaW + g) / (F + g)));
+    let expCellW = Math.floor((areaW - (expCols - 1) * g) / expCols);
+    if (expCellW % 2 !== 0) expCellW -= 1; // 让左右内边距严格相等
+    const expLeftover = areaW - (expCols * expCellW + (expCols - 1) * g);
+    const expPadX = expLeftover / 2;
+
+    const symX = F + g;
+    const symW = W_eff - 2 * (F + g);
+    const symCols = 20;
+    const symCellW = Math.floor((symW - (symCols - 1) * g) / symCols);
+    const symPadX = (symW - (symCols * symCellW + (symCols - 1) * g)) / 2;
+
     return {
-      orientation: 'landscape', W: W, H: H, kbW: W_eff, kbLeft: R, kbH: kbH,
-      F: F, K: K, keyH: keyH, gap: gap, C: C, panelW: panelW,
-      panelH: 204, R: R
+      orientation: 'landscape', W: W, H: H, R: R, g: g,
+      kbW: W_eff, kbLeft: R, kbH: 3 * keyH + 2 * g,
+      F: F, K: K, keyH: keyH,
+      C: C, panelX: panelX, panelW: C, panelH: panelH,
+      panelCellW: panelCellW, panelPadX: panelPadX,
+      panelRowYs: [0, S, 2 * S, keyH + g, keyH + g + S, keyH + g + 2 * S],
+      areaW: areaW, expCols: expCols, expCellW: expCellW, expGap: g,
+      expPadX: expPadX, expPadY: 8, expRowH: 40,
+      expPreeditY: 8, expRowsStart: 48, expPanelH: 3 * keyH + 2 * g,
+      returnX: W_eff - F, returnW: F,
+      symX: symX, symW: symW, symCols: symCols, symCellW: symCellW, symPadX: symPadX
     };
   }
 
@@ -139,15 +179,6 @@
 
   // ---------- small helpers ----------
 
-  function splitInts(total, count, gap) {
-    const avail = total - (count - 1) * (gap || 0);
-    const base = Math.floor(avail / count);
-    const rem = avail - base * count;
-    const out = [];
-    for (let i = 0; i < count; i++) out.push(base + (i < rem ? 1 : 0));
-    return out;
-  }
-
   function shiftActive() {
     return state.mods.shift.active;
   }
@@ -158,15 +189,6 @@
 
   function symbolPageCount() {
     return Math.max(1, Math.ceil(D.symbols.length / symbolSlots()));
-  }
-
-  function candPageCount() {
-    return Math.max(1, Math.ceil(state.candidates.length / PAGE_SIZE));
-  }
-
-  function visibleCandidates() {
-    const start = state.candPage * PAGE_SIZE;
-    return state.candidates.slice(start, start + PAGE_SIZE);
   }
 
   function showToast(msg, kind) {
@@ -210,11 +232,6 @@
     els.device.style.width = m.W + 'px';
     els.device.style.height = m.H + 'px';
     els.device.setAttribute('data-orientation', m.orientation);
-    els.device.style.setProperty('--main-size', (m.orientation === 'portrait' ? '32px' : '28px'));
-    els.device.style.setProperty('--sub-size', (m.orientation === 'portrait' ? '32px' : '22px'));
-    els.device.style.setProperty('--preedit-size', (m.orientation === 'portrait' ? '32px' : '22px'));
-    els.device.style.setProperty('--cand-size', (m.orientation === 'portrait' ? '28px' : '24px'));
-    els.device.style.setProperty('--panel-cand-size', '24px');
     els.appScreen.style.bottom = (state.keyboardVisible ? m.kbH : 0) + 'px';
     els.keyboard.style.left = m.kbLeft + 'px';
     els.keyboard.style.width = m.kbW + 'px';
@@ -234,6 +251,8 @@
     keyEls.clear();
     candidateBarEl = null;
     candidatePanelEl = null;
+    expandedPanelEl = null;
+    floatingPreeditEl = null;
     if (!state.keyboardVisible) return;
     if (state.orientation === 'portrait') buildPortrait();
     else buildLandscape();
@@ -302,109 +321,172 @@
     return el;
   }
 
-  function buildCandidateBarPortrait() {
-    const bar = document.createElement('div');
-    bar.className = 'candidate-bar';
-    bar.innerHTML = '<div class="preedit"></div><div class="cand-row"></div>';
-    els.keyboard.appendChild(bar);
-    candidateBarEl = bar;
-  }
-
   function buildPortrait() {
     const m = metrics;
-    buildCandidateBarPortrait();
-    if (state.layer === 'letters') {
-      D.portraitRows.forEach(function (row, ri) {
-        let x = m.side;
-        const y = m.barH + ri * (m.keyH + m.gap);
-        row.forEach(function (id) {
-          const def = D.keys[id];
-          const w = def.double ? m.double : m.K;
-          makeKey(id, x, y, w, m.keyH);
-          x += w + m.gap;
-        });
-      });
+
+    if (state.layer === 'symbols') {
+      buildPortraitSymbols();
+    } else if (state.expanded) {
+      buildPortraitExpanded();
     } else {
-      for (let r = 0; r < 3; r++) {
-        let x = m.side;
-        const y = m.barH + r * (m.keyH + m.gap);
-        for (let c = 0; c < 10; c++) {
-          const idx = state.symbolPage * 30 + r * 10 + c;
-          makeSymbolKey(idx < D.symbols.length ? D.symbols[idx] : '', x, y, m.K, m.keyH);
-          x += m.K + m.gap;
-        }
-      }
-      let x = m.side;
-      const y = m.barH + 3 * (m.keyH + m.gap);
-      D.portraitRows[3].forEach(function (id) {
-        const def = D.keys[id];
-        const w = def.double ? m.double : m.K;
-        makeKey(id, x, y, w, m.keyH);
-        x += w + m.gap;
-      });
+      buildPortraitLetters();
     }
+
+    buildPortraitFunctionRow(m.upper + m.g);
+  }
+
+  function buildPortraitLetters() {
+    const m = metrics;
+    const bar = document.createElement('div');
+    bar.className = 'candidate-bar';
+    bar.style.height = m.barH + 'px';
+    els.keyboard.appendChild(bar);
+    candidateBarEl = bar;
+
+    D.portraitRows.slice(0, 3).forEach(function (row, ri) {
+      const y = m.barH + m.barGap + ri * (m.keyH + m.g);
+      row.forEach(function (id, ci) {
+        makeKey(id, m.side + ci * (m.K + m.g), y, m.K, m.keyH);
+      });
+    });
+  }
+
+  function buildPortraitSymbols() {
+    const m = metrics;
+    for (let r = 0; r < 3; r++) {
+      const y = r * (m.keyH + m.g);
+      for (let c = 0; c < 10; c++) {
+        const idx = state.symbolPage * 30 + r * 10 + c;
+        const sym = idx < D.symbols.length ? D.symbols[idx] : '';
+        makeSymbolKey(sym, m.side + c * (m.K + m.g), y, m.K, m.keyH);
+      }
+    }
+  }
+
+  function buildPortraitExpanded() {
+    const m = metrics;
+    const panel = document.createElement('div');
+    panel.className = 'expanded-panel';
+    panel.style.left = '0px';
+    panel.style.top = '0px';
+    panel.style.width = m.W + 'px';
+    panel.style.height = m.expPanelH + 'px';
+    els.keyboard.appendChild(panel);
+    expandedPanelEl = panel;
+  }
+
+  function buildPortraitFunctionRow(y) {
+    const m = metrics;
+    let x = m.side;
+    D.portraitRows[3].forEach(function (id) {
+      const def = D.keys[id];
+      const w = def.double ? m.double : m.K;
+      makeKey(id, x, y, w, m.keyH);
+      x += w + m.g;
+    });
   }
 
   function buildLandscape() {
+    if (state.layer === 'symbols') buildLandscapeSymbols();
+    else if (state.expanded) buildLandscapeExpanded();
+    else buildLandscapeLetters();
+  }
+
+  function buildLandscapeLetters() {
     const m = metrics;
+    for (let ri = 0; ri < 3; ri++) {
+      const y = ri * (m.keyH + m.g);
+      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
 
-    if (state.layer === 'letters') {
-      for (let ri = 0; ri < 3; ri++) {
-        const y = ri * (m.keyH + m.gap);
-        makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
+      D.landLeft[ri].forEach(function (id, ci) {
+        makeKey(id, m.F + m.g + ci * (m.K + m.g), y, m.K, m.keyH);
+      });
 
-        let x = m.F + m.gap;
-        D.landLeft[ri].forEach(function (id) {
-          makeKey(id, x, y, m.K, m.keyH);
-          x += m.K + m.gap;
-        });
+      const rightStart = m.kbW - m.F - m.g - (D.landRight[ri].length * m.K + (D.landRight[ri].length - 1) * m.g);
+      D.landRight[ri].forEach(function (id, ci) {
+        makeKey(id, rightStart + ci * (m.K + m.g), y, m.K, m.keyH);
+      });
 
-        if (ri === 2) {
-          const row3Left = D.landLeft[2];
-          const spaceX = m.F + m.gap + row3Left.length * m.K + (row3Left.length - 1) * m.gap + m.gap;
-          makeKey('space', spaceX, y, m.C, m.keyH);
-        }
+      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
+    }
 
-        const rightRow = D.landRight[ri];
-        const total = rightRow.length * m.K + (rightRow.length - 1) * m.gap;
-        let rx = m.kbW - m.F - m.gap - total;
-        rightRow.forEach(function (id) {
-          makeKey(id, rx, y, m.K, m.keyH);
-          rx += m.K + m.gap;
-        });
+    makeKey('space', m.panelX, 2 * (m.keyH + m.g), m.C, m.keyH);
 
-        makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
-      }
+    const panel = document.createElement('div');
+    panel.className = 'candidate-panel';
+    panel.style.left = m.panelX + 'px';
+    panel.style.top = '0px';
+    panel.style.width = m.panelW + 'px';
+    panel.style.height = m.panelH + 'px';
+    els.keyboard.appendChild(panel);
+    candidatePanelEl = panel;
+  }
 
-      const panelX = m.F + m.gap + 6 * m.K + 5 * m.gap + m.gap;
-      const panel = document.createElement('div');
-      panel.className = 'candidate-panel';
-      panel.style.left = panelX + 'px';
-      panel.style.top = '0px';
-      panel.style.width = m.panelW + 'px';
-      panel.style.height = m.panelH + 'px';
-      panel.innerHTML = '<div class="panel-status"></div><div class="panel-top panel-row"></div><div class="panel-bottom panel-row"></div>';
-      els.keyboard.appendChild(panel);
-      candidatePanelEl = panel;
-    } else {
-      for (let ri = 0; ri < 3; ri++) {
-        makeKey(D.outerLeft[ri], 0, ri * (m.keyH + m.gap), m.F, m.keyH);
-        makeKey(D.outerRight[ri], m.kbW - m.F, ri * (m.keyH + m.gap), m.F, m.keyH);
-      }
-      const middleX = m.F + m.gap;
-      const middleW = m.kbW - 2 * (m.F + m.gap);
-      const n = 20;
-      const k = Math.floor((middleW - (n - 1) * m.gap) / n);
-      const leftover = middleW - (n * k + (n - 1) * m.gap);
-      const pad = Math.floor(leftover / 2);
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < n; c++) {
-          const idx = state.symbolPage * 60 + r * n + c;
-          const sym = idx < D.symbols.length ? D.symbols[idx] : '';
-          makeSymbolKey(sym, middleX + pad + c * (k + m.gap), r * (m.keyH + m.gap), k, m.keyH);
-        }
+  function buildLandscapeSymbols() {
+    const m = metrics;
+    for (let ri = 0; ri < 3; ri++) {
+      const y = ri * (m.keyH + m.g);
+      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
+      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
+      for (let c = 0; c < m.symCols; c++) {
+        const idx = state.symbolPage * symbolSlots() + ri * m.symCols + c;
+        const sym = idx < D.symbols.length ? D.symbols[idx] : '';
+        makeSymbolKey(
+          sym,
+          m.symX + m.symPadX + c * (m.symCellW + m.g),
+          y,
+          m.symCellW,
+          m.keyH
+        );
       }
     }
+  }
+
+  function buildLandscapeExpanded() {
+    const m = metrics;
+    const panel = document.createElement('div');
+    panel.className = 'expanded-panel';
+    panel.style.left = '0px';
+    panel.style.top = '0px';
+    panel.style.width = m.areaW + 'px';
+    panel.style.height = m.expPanelH + 'px';
+    els.keyboard.appendChild(panel);
+    expandedPanelEl = panel;
+    // 确认键在展开态变成右侧整列“返回”。
+    makeKey('enter', m.returnX, 0, m.returnW, m.expPanelH);
+  }
+
+  // ---------- floating preedit ----------
+
+  function updateFloatingPreedit() {
+    if (!state.keyboardVisible) return;
+    const need = !state.expanded && (state.composing || state.escape);
+    if (!need) {
+      if (floatingPreeditEl) {
+        floatingPreeditEl.remove();
+        floatingPreeditEl = null;
+      }
+      return;
+    }
+    if (!floatingPreeditEl) {
+      floatingPreeditEl = document.createElement('div');
+      floatingPreeditEl.className = 'floating-preedit';
+      els.keyboard.appendChild(floatingPreeditEl);
+    }
+    floatingPreeditEl.classList.remove('small');
+    let text = '';
+    if (state.composing) {
+      text = state.preedit;
+    } else if (state.escape) {
+      const info = escapePreview();
+      if (state.layer === 'symbols') {
+        text = info.text;
+        if (info.help || !info.valid) floatingPreeditEl.classList.add('small');
+      } else {
+        text = state.escapeBuffer;
+      }
+    }
+    floatingPreeditEl.textContent = text;
   }
 
   // ---------- labels / state ----------
@@ -413,15 +495,17 @@
     const def = D.keys[id];
     if (!def) return '';
     if (id === 'lang') {
-      if (state.layer === 'symbols') {
-        if (state.orientation === 'landscape') {
-          return '符 ' + (state.symbolPage + 1) + '/' + symbolPageCount();
-        }
-        return '符';
-      }
+      if (state.layer === 'symbols') return '符';
       return state.lang === 'zh' ? '中' : '英';
     }
-    if (id === 'space') return state.escape ? state.escapeBuffer : '空格';
+    if (id === 'enter') {
+      if (state.composing) return state.expanded ? '返回' : '展开';
+      return '确认';
+    }
+    if (id === 'space') {
+      if (state.escape) return state.escapeBuffer;
+      return '空格';
+    }
     if (def.kind === 'letter') return shiftActive() ? id.toUpperCase() : id;
     return (def.main && (def.main[state.lang] || def.main.en)) || '';
   }
@@ -440,29 +524,34 @@
     const main = el.querySelector('.main');
     const up = el.querySelector('.up');
     const down = el.querySelector('.down');
+
     if (main) {
       main.textContent = keyMainText(id);
+      main.style.fontSize = '';
       if (id === 'space' && state.escape) {
-        const len = state.escapeBuffer.length;
-        const base = state.orientation === 'portrait' ? 32 : 28;
-        const size = len <= 5 ? base : (len <= 8 ? Math.round(base * 0.72) : Math.round(base * 0.55));
-        main.style.fontSize = size + 'px';
-      } else if (id === 'lang' && state.layer === 'symbols' && state.orientation === 'landscape') {
-        main.style.fontSize = '22px';
-      } else {
-        main.style.fontSize = '';
+        main.style.fontSize = state.orientation === 'portrait' ? '16px' : '';
       }
     }
-    if (up) up.textContent = keySlideText(def, 'up');
-    if (down) down.textContent = keySlideText(def, 'down');
+
+    if (id === 'lang' && state.layer === 'symbols') {
+      el.classList.remove('single');
+      if (up) up.textContent = '';
+      if (down) {
+        down.textContent = (state.symbolPage + 1) + '/' + symbolPageCount();
+        down.classList.add('tiny');
+      }
+    } else {
+      if (up) up.textContent = keySlideText(def, 'up');
+      if (down) {
+        down.textContent = keySlideText(def, 'down');
+        down.classList.remove('tiny');
+      }
+      if (!def.up && !def.down) el.classList.add('single');
+    }
   }
 
   function updateAllKeyLabels() {
     keyEls.forEach(function (el, id) { updateKeyLabel(id); });
-    // symbol page label on landscape lang key
-    if (state.orientation === 'landscape' && state.layer === 'symbols' && keyEls.get('lang')) {
-      updateKeyLabel('lang');
-    }
   }
 
   function updateKeyState(id) {
@@ -484,34 +573,38 @@
 
   // ---------- candidate rendering ----------
 
-  function makeCandButton(text, width, cls) {
-    const b = document.createElement(text ? 'button' : 'span');
-    b.className = cls || 'cand';
-    b.style.width = width + 'px';
-    b.textContent = text || '';
-    if (text) {
-      b.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        if (suppressCandClick) { suppressCandClick = false; return; }
-        commitCandidate(text);
-      });
-    } else {
-      b.classList.add('empty');
-    }
+  function makeCandCell(parent, text, x, y, w, h) {
+    if (!parent || !text) return null;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cand-cell';
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
+    b.style.width = w + 'px';
+    b.style.height = h + 'px';
+    const span = document.createElement('span');
+    span.className = 'cand-text';
+    span.textContent = text;
+    b.appendChild(span);
+    b.setAttribute('aria-label', '候选 ' + text);
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      commitCandidate(text);
+    });
+    parent.appendChild(b);
     return b;
   }
 
-  function makeMoreButton(width, hClass) {
-    const b = document.createElement('button');
-    b.className = 'more ' + (hClass || '');
-    b.style.width = width + 'px';
-    b.textContent = '>';
-    b.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      if (suppressCandClick) { suppressCandClick = false; return; }
-      nextCandidatePage();
-    });
-    return b;
+  function makeEscapeLine(parent, text, x, y, w, h, small) {
+    const d = document.createElement('div');
+    d.className = 'escape-line' + (small ? ' small' : '');
+    d.style.left = x + 'px';
+    d.style.top = y + 'px';
+    d.style.width = w + 'px';
+    d.style.height = h + 'px';
+    d.textContent = text;
+    parent.appendChild(d);
+    return d;
   }
 
   function escapePreview() {
@@ -545,94 +638,108 @@
   }
 
   function renderCandidateContent() {
-    if (candidateBarEl) renderPortraitCandidate();
-    if (candidatePanelEl) renderLandscapeCandidate();
+    if (candidateBarEl) renderPortraitCandidateBar();
+    if (candidatePanelEl) renderLandscapeCandidatePanel();
+    if (expandedPanelEl) renderExpandedPanel();
+    updateFloatingPreedit();
   }
 
-  function renderPortraitCandidate() {
-    const pre = candidateBarEl.querySelector('.preedit');
-    const row = candidateBarEl.querySelector('.cand-row');
-    pre.textContent = '';
-    row.innerHTML = '';
+  function renderPortraitCandidateBar() {
+    const bar = candidateBarEl;
+    const m = metrics;
+    bar.innerHTML = '';
     if (state.escape) {
-      pre.textContent = state.escapeBuffer;
       const info = escapePreview();
-      const line = document.createElement('div');
-      line.className = 'escape-line';
-      line.textContent = info.text;
-      row.appendChild(line);
+      makeEscapeLine(bar, info.text, 0, 0, m.W, m.candH, info.help || !info.valid);
       return;
     }
-    if (state.layer === 'symbols') {
-      pre.textContent = '符号 ' + (state.symbolPage + 1) + '/' + symbolPageCount();
-      return;
-    }
-    if (state.composing) {
-      pre.textContent = state.preedit;
-      const widths = splitInts(716 - 24 - 5 * 8, 5, 0);
-      const visible = visibleCandidates();
-      for (let i = 0; i < 5; i++) {
-        row.appendChild(makeCandButton(visible[i] || '', widths[i], 'cand'));
-      }
-      const hasMore = candPageCount() > 1;
-      if (hasMore) row.appendChild(makeMoreButton(24, 'more'));
-      else {
-        const spacer = document.createElement('span');
-        spacer.className = 'more empty';
-        spacer.style.width = '24px';
-        row.appendChild(spacer);
-      }
+    if (!state.composing) return;
+    for (let i = 0; i < 5; i++) {
+      makeCandCell(
+        bar,
+        state.candidates[i],
+        m.candSide + i * (m.candCellW + m.candGap),
+        0,
+        m.candCellW,
+        m.candH
+      );
     }
   }
 
-  function renderLandscapeCandidate() {
-    const status = candidatePanelEl.querySelector('.panel-status');
-    const top = candidatePanelEl.querySelector('.panel-top');
-    const bottom = candidatePanelEl.querySelector('.panel-bottom');
-    status.textContent = '';
-    top.innerHTML = '';
-    bottom.innerHTML = '';
+  function renderLandscapeCandidatePanel() {
+    const panel = candidatePanelEl;
+    const m = metrics;
+    panel.innerHTML = '';
     if (state.escape) {
-      status.textContent = state.escapeBuffer;
       const info = escapePreview();
-      const p = document.createElement('div');
-      p.className = 'escape-line';
-      p.textContent = info.text;
-      top.appendChild(p);
-      const h = document.createElement('div');
-      h.className = 'escape-line small';
-      h.textContent = info.help ? '' : 'n 换行  t 制表  u Unicode  s 设置';
-      bottom.appendChild(h);
+      if (info.help || !info.valid) {
+        makeEscapeLine(panel, info.text, 0, 0, m.panelW, S, true);
+      } else {
+        makeEscapeLine(panel, info.text, 0, 0, m.panelW, S, false);
+        makeEscapeLine(panel, 'n 换行   t 制表   u Unicode   s 设置', 0, S, m.panelW, S, true);
+      }
       return;
     }
-    if (state.composing) {
-      status.textContent = state.preedit;
-      const P = metrics.panelW;
-      const topW = splitInts(P - 4, 2, 0);
-      const bottomAvailable = P - 12 - 24;
-      const bottomW = splitInts(bottomAvailable, 3, 0);
-      const visible = visibleCandidates();
-      for (let i = 0; i < 2; i++) {
-        top.appendChild(makeCandButton(visible[i] || '', topW[i], 'cand panel-cand'));
-      }
-      for (let i = 2; i < 5; i++) {
-        bottom.appendChild(makeCandButton(visible[i] || '', bottomW[i - 2], 'cand panel-cand'));
-      }
-      if (candPageCount() > 1) bottom.appendChild(makeMoreButton(24, 'more panel-more'));
-      else {
-        const spacer = document.createElement('span');
-        spacer.className = 'more empty';
-        spacer.style.width = '24px';
-        bottom.appendChild(spacer);
+    if (!state.composing) return;
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 4; c++) {
+        const idx = r * 4 + c;
+        makeCandCell(
+          panel,
+          state.candidates[idx],
+          m.panelPadX + c * (m.panelCellW + m.g),
+          m.panelRowYs[r],
+          m.panelCellW,
+          S
+        );
       }
     }
   }
 
-  function nextCandidatePage() {
-    if (state.candidates.length <= PAGE_SIZE) return;
-    state.candPage = (state.candPage + 1) % candPageCount();
-    renderCandidateContent();
-    logEvent('候选翻页 → ' + (state.candPage + 1) + '/' + candPageCount());
+  function renderExpandedPanel() {
+    const panel = expandedPanelEl;
+    const m = metrics;
+    panel.innerHTML = '';
+
+    const pre = document.createElement('div');
+    pre.className = 'expanded-preedit';
+    pre.style.left = '0px';
+    pre.style.top = m.expPreeditY + 'px';
+    pre.style.width = '100%';
+    pre.style.height = m.expRowH + 'px';
+    pre.style.lineHeight = m.expRowH + 'px';
+    pre.textContent = state.preedit || state.composing;
+    panel.appendChild(pre);
+
+    if (state.orientation === 'portrait') {
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < m.expCols; c++) {
+          const idx = r * m.expCols + c;
+          makeCandCell(
+            panel,
+            state.candidates[idx],
+            m.expSide + c * (m.expCellW + m.expGap),
+            m.expRowsStart + r * m.expRowH,
+            m.expCellW,
+            m.expRowH
+          );
+        }
+      }
+    } else {
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < m.expCols; c++) {
+          const idx = r * m.expCols + c;
+          makeCandCell(
+            panel,
+            state.candidates[idx],
+            m.expPadX + c * (m.expCellW + m.expGap),
+            m.expRowsStart + r * m.expRowH,
+            m.expCellW,
+            m.expRowH
+          );
+        }
+      }
+    }
   }
 
   // ---------- editor ----------
@@ -641,6 +748,7 @@
     let mode = state.lang === 'zh' ? '中' : '英';
     if (state.layer === 'symbols') mode += ' · 符 ' + (state.symbolPage + 1) + '/' + symbolPageCount();
     if (state.escape) mode += ' · 转义';
+    if (state.composing) mode += state.expanded ? ' · 展开' : ' · 候选';
     els.appMode.textContent = mode;
   }
 
@@ -723,32 +831,39 @@
   }
 
   function updateComposition() {
+    const wasExpanded = state.expanded;
     if (!state.composing) {
       state.preedit = '';
       state.candidates = [];
-      state.candPage = 0;
+      state.expanded = false;
     } else {
       const r = lookupPinyin(state.composing);
       state.preedit = r.pre;
       state.candidates = r.c;
-      state.candPage = 0;
+    }
+    if (wasExpanded && !state.composing) {
+      rebuildAll();
+      return;
     }
     renderCandidateContent();
-    renderEditor();
-  }
-
-  function clearComposition() {
-    state.composing = '';
-    state.preedit = '';
-    state.candidates = [];
-    state.candPage = 0;
+    updateAllKeyLabels();
+    updateAppMode();
   }
 
   function commitComposition(str) {
+    const wasExpanded = state.expanded;
     insertText(str);
-    clearComposition();
+    state.composing = '';
+    state.preedit = '';
+    state.candidates = [];
+    state.expanded = false;
+    if (wasExpanded) {
+      rebuildAll();
+      return;
+    }
     renderCandidateContent();
     updateAllKeyLabels();
+    updateAppMode();
   }
 
   function commitCandidate(text) {
@@ -780,6 +895,13 @@
       return;
     }
     backspaceText();
+  }
+
+  function setExpanded(v) {
+    if (state.expanded === v) return;
+    state.expanded = v;
+    rebuildAll();
+    logEvent(v ? '展开候选' : '返回候选');
   }
 
   // ---------- modifier state ----------
@@ -896,7 +1018,7 @@
       return;
     }
     if (state.layer === 'symbols') {
-      if (state.escape) appendEscape(label); else insertText(label);
+      insertText(label);
       logEvent('符号：' + label);
       return;
     }
@@ -1022,15 +1144,13 @@
     if (def.kind === 'enter') {
       if (state.escape) { showToast('转义模式中确认键无效'); return; }
       if (state.composing) {
-        const raw = state.composing;
-        logEvent('确认上屏原始字符：' + raw);
-        commitComposition(raw);
+        setExpanded(!state.expanded);
         clearTempMods();
-      } else {
-        insertText('\n');
-        logEvent('换行');
-        clearTempMods();
+        return;
       }
+      insertText('\n');
+      logEvent('换行');
+      clearTempMods();
       return;
     }
     if (def.kind === 'nav') {
@@ -1073,28 +1193,22 @@
     }
     state.layer = 'symbols';
     state.symbolPage = 0;
+    state.expanded = false;
     clearTempMods();
-    buildKeyboard();
-    renderCandidateContent();
-    updateAppMode();
+    rebuildAll();
     logEvent('进入符号模式');
   }
 
   function exitSymbolMode() {
     state.layer = 'letters';
     clearTempMods();
-    buildKeyboard();
-    renderCandidateContent();
-    updateAppMode();
+    rebuildAll();
     logEvent('退出符号模式');
   }
 
   function longLang() {
-    if (state.layer === 'symbols') {
-      exitSymbolMode();
-    } else {
-      enterSymbolMode();
-    }
+    if (state.layer === 'symbols') exitSymbolMode();
+    else enterSymbolMode();
   }
 
   function longSpace() {
@@ -1122,14 +1236,12 @@
   function hideKeyboard() {
     state.keyboardVisible = false;
     rebuildAll();
-    renderCandidateContent();
     logEvent('收起键盘');
   }
 
   function showKeyboard() {
     state.keyboardVisible = true;
     rebuildAll();
-    renderCandidateContent();
     logEvent('显示键盘');
   }
 
@@ -1137,9 +1249,7 @@
     const count = symbolPageCount();
     if (count <= 1) return;
     state.symbolPage = (state.symbolPage + direction + count) % count;
-    buildKeyboard();
-    renderCandidateContent();
-    updateAppMode();
+    rebuildAll();
     logEvent('符号页 → ' + (state.symbolPage + 1) + '/' + count);
   }
 
@@ -1306,7 +1416,7 @@
     if (s.symbol) {
       if (s.mode === 'swipe') {
         flipSymbolPage(s.dir === 'up' ? 1 : -1);
-      } else if (s.symbol) {
+      } else {
         tapSymbol(s.symbol);
       }
       return;
@@ -1334,34 +1444,6 @@
   function onPointerCancel(e) {
     const s = sessions.get(e.pointerId);
     if (s) cancelSession(s);
-  }
-
-  // ---------- candidate swipe ----------
-
-  let candSwipe = null;
-  function bindCandidateSwipe() {
-    els.keyboard.addEventListener('pointerdown', function (e) {
-      const row = e.target.closest('.cand-row, .panel-top, .panel-bottom');
-      if (!row) return;
-      candSwipe = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-    });
-    window.addEventListener('pointerup', function (e) {
-      if (!candSwipe || candSwipe.pointerId !== e.pointerId) { candSwipe = null; return; }
-      const dx = e.clientX - candSwipe.x;
-      const dy = e.clientY - candSwipe.y;
-      candSwipe = null;
-      if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
-        suppressCandClick = true;
-        setTimeout(function () { suppressCandClick = false; }, 400);
-        if (dx < 0) nextCandidatePage();
-        else {
-          if (state.candidates.length > PAGE_SIZE) {
-            state.candPage = (state.candPage - 1 + candPageCount()) % candPageCount();
-            renderCandidateContent();
-          }
-        }
-      }
-    });
   }
 
   // ---------- controls ----------
@@ -1392,7 +1474,7 @@
     state.escape = false;
     state.escapeBuffer = '\\';
     state.composing = 'nihao';
-    state.candPage = 0;
+    state.expanded = false;
     rebuildAll();
     updateComposition();
     logEvent("演示：ni'hao");
@@ -1409,13 +1491,11 @@
     state.mods.alt.active = false; state.mods.alt.locked = false;
     state.composing = '';
     state.candidates = [];
-    state.candPage = 0;
     state.preedit = '';
+    state.expanded = false;
     state.text = '';
     state.cursor = 0;
-    state.escape = false;
     rebuildAll();
-    renderCandidateContent();
     logEvent('重置');
   }
 
@@ -1461,7 +1541,6 @@
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
-    bindCandidateSwipe();
     window.addEventListener('resize', fitStage);
     if (media.addEventListener) {
       media.addEventListener('change', function () {

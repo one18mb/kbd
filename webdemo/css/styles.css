@@ -162,14 +162,14 @@ body {
   border-bottom: 1px solid var(--border);
   color: var(--sub-text);
   font-family: 'Unifont', monospace;
-  font-size: 22px;
+  font-size: 32px;
   line-height: 1;
   -webkit-font-smoothing: none;
 }
 
 .app-mode {
   color: var(--muted);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 #editor {
@@ -179,7 +179,7 @@ body {
   padding: 16px 20px 24px;
   font-family: 'Unifont', monospace;
   font-size: 32px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
@@ -219,7 +219,7 @@ body {
   padding: 8px 14px;
   background: var(--toast-bg);
   color: var(--toast-text);
-  font: 22px 'Unifont', monospace;
+  font: 16px 'Unifont', monospace;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s linear;
@@ -243,116 +243,101 @@ body {
   -webkit-font-smoothing: none;
 }
 
-/* ---------- candidate bar (portrait) ---------- */
+/* ---------- floating pinyin ---------- */
+
+.floating-preedit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 32px;
+  display: block;
+  padding: 0 8px;
+  background: var(--bar-bg);
+  color: var(--text);
+  font-family: 'Unifont', monospace;
+  font-size: 32px;
+  line-height: 32px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 4;
+  -webkit-font-smoothing: none;
+}
+
+.floating-preedit.small {
+  font-size: 16px;
+}
+
+/* ---------- candidate surfaces ---------- */
 
 .candidate-bar {
   position: absolute;
   left: 0;
   top: 0;
   width: 100%;
-  height: 120px;
+  height: 32px;
   background: var(--bar-bg);
-  display: flex;
-  flex-direction: column;
   z-index: 2;
 }
 
-.preedit {
-  flex: 0 0 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  font-family: 'Unifont', monospace;
-  font-size: var(--preedit-size);
-  line-height: 1;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.candidate-panel {
+  position: absolute;
+  background: var(--bar-bg);
+  z-index: 2;
   -webkit-font-smoothing: none;
 }
 
-.cand-row {
-  flex: 0 0 60px;
-  height: 60px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px;
-  touch-action: none;
+.expanded-panel {
+  position: absolute;
+  background: var(--bar-bg);
+  z-index: 3;
+  -webkit-font-smoothing: none;
 }
 
-.cand {
-  flex: 0 0 auto;
+.cand-cell {
+  position: absolute;
   appearance: none;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--text);
-  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-family: 'Unifont', monospace;
-  font-size: var(--cand-size);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  touch-action: none;
-  -webkit-font-smoothing: none;
-}
-
-.cand:active {
-  background: var(--active-bg);
-  color: var(--active-text);
-}
-
-.cand.empty {
-  visibility: hidden;
-}
-
-.more {
-  flex: 0 0 auto;
-  appearance: none;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text);
-  height: 60px;
-  width: 24px;
-  padding: 0;
+  margin: 0;
   font-family: 'Unifont', monospace;
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
   touch-action: none;
+  overflow: hidden;
   -webkit-font-smoothing: none;
 }
 
-.more:active {
+.cand-cell .cand-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cand-cell:active {
   background: var(--active-bg);
   color: var(--active-text);
 }
 
-.more.empty {
-  visibility: hidden;
-}
-
 .escape-line {
-  flex: 1 1 auto;
-  height: 60px;
-  display: flex;
-  align-items: center;
+  position: absolute;
+  display: block;
   padding: 0 8px;
   color: var(--sub-text);
   font-family: 'Unifont', monospace;
-  font-size: 24px;
-  line-height: 1;
+  font-size: 32px;
+  line-height: 32px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -360,7 +345,20 @@ body {
 }
 
 .escape-line.small {
-  font-size: 20px;
+  font-size: 16px;
+}
+
+.expanded-preedit {
+  position: absolute;
+  display: block;
+  padding: 0 8px;
+  color: var(--text);
+  font-family: 'Unifont', monospace;
+  font-size: 32px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-font-smoothing: none;
 }
 
 /* ---------- keys ---------- */
@@ -386,26 +384,38 @@ body {
   padding: 0 2px;
   text-align: center;
   color: var(--sub-text);
-  font-size: var(--sub-size);
+  font-size: 32px;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .key .up {
-  align-self: end;
-  padding-bottom: 4px;
-}
-
-.key .down {
-  align-self: start;
-  padding-top: 4px;
+  grid-row: 1;
+  align-self: center;
 }
 
 .key .main {
+  grid-row: 2;
   width: 100%;
+  padding: 0;
   text-align: center;
   color: inherit;
-  font-size: var(--main-size);
+  font-size: 32px;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.key .down {
+  grid-row: 3;
+  align-self: center;
+}
+
+.key .down.tiny {
+  font-size: 16px;
 }
 
 .key.single .main {
@@ -424,6 +434,11 @@ body {
 .key.active .up,
 .key.active .down {
   color: var(--active-sub);
+}
+
+.key.pressed .down.tiny,
+.key.active .down.tiny {
+  color: var(--active-text);
 }
 
 .key.locked::after {
@@ -455,7 +470,8 @@ body {
   justify-content: center;
   padding: 0;
   color: var(--text);
-  font-size: var(--main-size);
+  font-size: 32px;
+  line-height: 1;
 }
 
 .key.slide-up.pressed .up,
@@ -473,70 +489,6 @@ body {
 
 .key.empty {
   visibility: hidden;
-}
-
-/* ---------- landscape candidate panel ---------- */
-
-.candidate-panel {
-  position: absolute;
-  background: var(--bar-bg);
-  display: flex;
-  flex-direction: column;
-  z-index: 2;
-  -webkit-font-smoothing: none;
-}
-
-.panel-status {
-  flex: 0 0 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  color: var(--sub-text);
-  font-family: 'Unifont', monospace;
-  font-size: 22px;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
-  touch-action: none;
-}
-
-.panel-top {
-  flex: 0 0 84px;
-  height: 84px;
-  margin-top: 4px;
-}
-
-.panel-bottom {
-  flex: 0 0 84px;
-  height: 84px;
-}
-
-.panel-cand {
-  height: 84px;
-  font-size: 24px;
-}
-
-.panel-more {
-  height: 84px;
-  font-size: 28px;
-}
-
-.panel-row .escape-line {
-  height: 84px;
-  font-size: 24px;
-}
-
-.panel-row .escape-line.small {
-  font-size: 20px;
 }
 
 /* ---------- hidden keyboard ---------- */
@@ -564,7 +516,7 @@ body {
   border-radius: 0;
   background: transparent;
   color: var(--sub-text);
-  font: 22px 'Unifont', monospace;
+  font: 16px 'Unifont', monospace;
   cursor: pointer;
   padding: 0 16px;
   height: 100%;

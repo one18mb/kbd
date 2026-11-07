@@ -99,12 +99,12 @@
   const outerRight = ['backspace', 'lang', 'enter'];
   const landLeft = [
     ['q', 'w', 'e', 'r', 't'],
-    ['arrowUp', 'a', 's', 'd', 'f', 'g'],
+    ['arrowUp', 'a', 's', 'd', 'f'],
     ['arrowDown', 'z', 'x', 'c', 'v']
   ];
   const landRight = [
     ['y', 'u', 'i', 'o', 'p'],
-    ['h', 'j', 'k', 'l'],
+    ['g', 'h', 'j', 'k', 'l'],
     ['b', 'n', 'm', 'arrowLeft', 'arrowRight']
   ];
 
@@ -184,6 +184,26 @@
     j: { label: '简繁', type: 'action', value: 'variant' }
   };
 
+  // 符号模式排除中英文模式已经能打出的符号：
+  // 只收集上下滑会作为文本上屏的标签（中/英两种形态）；方向键主标签是导航，不是字符。
+  const enterable = new Set();
+  Object.keys(keys).forEach(function (id) {
+    const def = keys[id];
+    ['up', 'down'].forEach(function (dir) {
+      const s = def[dir];
+      if (s) {
+        if (s.en) enterable.add(s.en);
+        if (s.zh) enterable.add(s.zh);
+      }
+    });
+  });
+  const seenSymbols = new Set();
+  const symbolsFiltered = symbols.filter(function (s) {
+    if (enterable.has(s) || seenSymbols.has(s)) return false;
+    seenSymbols.add(s);
+    return true;
+  });
+
   window.KBD = {
     zhPunct: zhPunct,
     keys: keys,
@@ -193,7 +213,7 @@
     landLeft: landLeft,
     landRight: landRight,
     pinyin: pinyin,
-    symbols: symbols,
+    symbols: symbolsFiltered,
     escapeCommands: escapeCommands
   };
 })();
