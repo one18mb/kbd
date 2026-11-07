@@ -281,7 +281,13 @@
 
   function executeEscape() {
     var info = escapePreview();
-    if (!info.valid) return;
+    // 空格短按：有效才执行；无效视为取消，直接退回普通空格。
+    if (!info.valid) {
+      var pending = state.escapeBuffer;
+      exitEscape();
+      logEvent('取消转义：' + pending);
+      return;
+    }
     var cmd = info.cmd;
     if (cmd) {
       if (cmd.type === 'text') {
