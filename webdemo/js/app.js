@@ -84,69 +84,77 @@
 
   function computeMetrics() {
     const R = state.safeInset;
-    const g = 4;
+    const g = 4; // 字行距 = 键行距 = 键列距
+    const keyH = 3 * S + 2 * g; // 104
 
     if (state.orientation === 'portrait') {
       const W = 720;
       const H = 1604;
       const side = 2;
       const K = 68;
-      const doubleW = 140;
-      const keyH = 3 * S;
-      // 14 行字：拼音浮动行 1 + 候选行 1 + 三行主键 9 + 功能行 3。
-      // 纵向不再留按键间距，保证 32px 行距连续；横向列间距仍为 g。
-      const barH = state.layer === 'letters' ? S : 0;
-      const upper = barH + 3 * keyH;
-      const kbH = upper + keyH + R;
-      // 展开：前三行主键的 9 个文字行直接变成 9 行候选，候选行本身仍在顶部。
+      const doubleW = 2 * K + g; // 140
+      const barH = 32;
+      const mainTop = barH + g; // 36
+      const mainH = 3 * keyH + 2 * g; // 320
+      const lettersFuncTop = mainTop + mainH + g; // 360
+      const symbolsFuncTop = mainH + g; // 324
+      const isLetters = state.layer === 'letters';
+      const funcTop = isLetters ? lettersFuncTop : symbolsFuncTop;
+      const kbH = funcTop + keyH + R;
+
       return {
         orientation: 'portrait', W: W, H: H, R: R, g: g,
         kbW: W, kbLeft: 0, kbH: kbH, side: side, K: K, double: doubleW,
-        keyH: keyH, barH: barH, upper: upper,
+        keyH: keyH, barH: barH, barGap: g, mainTop: mainTop, mainH: mainH, funcTop: funcTop,
         candCellW: 140, candGap: g, candSide: side, candH: S,
-        expTop: barH, expH: 3 * keyH, expRows: 9,
-        expCols: 5, expCellW: 140, expGap: g, expSide: side, expRowH: S
+        expTop: mainTop, expH: mainH, expRows: 9,
+        expCols: 5, expCellW: 140, expGap: g, expSide: side, expRowH: S,
+        pinyinX: 0, pinyinW: W,
+        symbolRows: [0, keyH + g, 2 * (keyH + g)], symbolK: K, symbolGap: g, symbolSide: side
       };
     }
 
     const W = 1604;
     const H = 720;
-    const W_eff = W - 2 * R;
-    // 符号中间区固定 1316（20×62 + 19×4），空格/候选面板固定 516；
-    // 安全边距由左右外列吸收，R=16 时 F=124。R 固定，不做运行时调整。
-    const symCols = 20;
-    const symCellW = 62;
-    const symW = symCols * symCellW + (symCols - 1) * g;
-    const F = (W_eff - symW - 2 * g) / 2;
-    const K = 76;
-    const keyH = 3 * S;
-    const C = W_eff - 2 * F - 10 * K - 12 * g;
-    const panelX = F + g + 5 * K + 5 * g;
-    const panelH = 2 * keyH + g;
-    // 横向固定 4px 间距：4 个候选 + 5 个 4px 间隙正好填满 C。
-    const panelCellW = Math.floor((C - 5 * g) / 4);
-    const panelPadX = (C - (4 * panelCellW + 3 * g)) / 2;
-
-    const symX = F + g;
-    const symPadX = (symW - (symCols * symCellW + (symCols - 1) * g)) / 2;
-
-    // 展开候选区与符号模式共用同一中间区间：x=symX、宽=symW、高=键盘高。
-    const expCols = Math.max(1, Math.floor((symW + g) / (F + g)));
-    let expCellW = Math.floor((symW - (expCols - 1) * g) / expCols);
-    if (expCellW % 2 !== 0) expCellW -= 1;
-    const expPadX = (symW - (expCols * expCellW + (expCols - 1) * g)) / 2;
+    const side = 48; // 横屏左右键盘边距，含安全区
+    const kbW = W - 2 * side; // 1508
+    const K = 68;
+    const cols = 21;
+    const outerW = K;
+    const letterCols = 5;
+    const letterW = letterCols * K + (letterCols - 1) * g; // 356
+    const letterX = outerW + g; // 72
+    const midCols = 9;
+    const midW = midCols * K + (midCols - 1) * g; // 644
+    const midX = letterX + letterW + g; // 432
+    const rightX = midX + midW + g; // 1080
+    const outerRightX = rightX + letterW + g; // 1440
+    const kbH = 3 * keyH + 2 * g; // 320
+    const rowY = [0, keyH + g, 2 * (keyH + g)]; // 0,108,216
+    const panelH = 2 * keyH + g; // 212
+    const panelCellW = 3 * K + 2 * g; // 212
+    const expH = kbH; // 320
+    const expCellW = panelCellW; // 212
+    const symbolX = letterX; // 72
+    const symbolCols = 19;
+    const symbolW = symbolCols * K + (symbolCols - 1) * g; // 1364
 
     return {
       orientation: 'landscape', W: W, H: H, R: R, g: g,
-      kbW: W_eff, kbLeft: R, kbH: 3 * keyH + 2 * g,
-      F: F, K: K, keyH: keyH,
-      C: C, panelX: panelX, panelW: C, panelH: panelH,
-      panelCellW: panelCellW, panelPadX: panelPadX,
-      panelRowYs: [0, S, 2 * S, keyH + g, keyH + g + S, keyH + g + 2 * S],
-      expX: symX, expW: symW, expCols: expCols, expCellW: expCellW, expGap: g,
-      expPadX: expPadX, expPadY: 8, expRowH: 40,
-      expPreeditY: 8, expRowsStart: 48, expPanelH: 3 * keyH + 2 * g,
-      symX: symX, symW: symW, symCols: symCols, symCellW: symCellW, symPadX: symPadX
+      kbW: kbW, kbLeft: side, kbH: kbH, side: side, K: K, keyH: keyH, cols: cols,
+      outerW: outerW, letterX: letterX, letterW: letterW, rightX: rightX, outerRightX: outerRightX,
+      midX: midX, midW: midW, rowY: rowY,
+      panelX: midX, panelW: midW, panelH: panelH,
+      panelCellW: panelCellW, panelCols: 3, panelRows: 6, panelCellH: S,
+      panelRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g)],
+      spaceX: midX, spaceY: rowY[2], spaceW: midW, spaceH: keyH,
+      expX: midX, expY: 0, expW: midW, expH: expH,
+      expCols: 3, expCellW: expCellW, expRows: 9,
+      expRowY: [0, S + g, 2 * (S + g), 3 * (S + g), 4 * (S + g), 5 * (S + g), 6 * (S + g), 7 * (S + g), 8 * (S + g)],
+      expCellH: S,
+      pinyinX: midX, pinyinW: midW,
+      symbolX: symbolX, symbolW: symbolW, symbolCols: symbolCols, symbolCellW: K, symbolRows: 3, symbolRowY: rowY,
+      candidateNormal: 18, candidateExpanded: 27, symbolPageSlots: 57
     };
   }
 
@@ -179,7 +187,7 @@
   }
 
   function symbolSlots() {
-    return state.orientation === 'portrait' ? 30 : 60;
+    return state.orientation === 'portrait' ? 30 : 57;
   }
 
   function symbolPageCount() {
@@ -326,7 +334,7 @@
       else buildPortraitLetters();
     }
 
-    buildPortraitFunctionRow(m.upper);
+    buildPortraitFunctionRow(m.funcTop);
   }
 
   function buildPortraitCandidateBar() {
@@ -341,7 +349,7 @@
   function buildPortraitLetters() {
     const m = metrics;
     D.portraitRows.slice(0, 3).forEach(function (row, ri) {
-      const y = m.barH + ri * m.keyH;
+      const y = m.mainTop + ri * (m.keyH + m.g);
       row.forEach(function (id, ci) {
         makeKey(id, m.side + ci * (m.K + m.g), y, m.K, m.keyH);
       });
@@ -351,11 +359,11 @@
   function buildPortraitSymbols() {
     const m = metrics;
     for (let r = 0; r < 3; r++) {
-      const y = r * m.keyH;
+      const y = m.symbolRows[r];
       for (let c = 0; c < 10; c++) {
         const idx = state.symbolPage * 30 + r * 10 + c;
         const sym = idx < D.symbols.length ? D.symbols[idx] : '';
-        makeSymbolKey(sym, m.side + c * (m.K + m.g), y, m.K, m.keyH);
+        makeSymbolKey(sym, m.symbolSide + c * (m.symbolK + m.symbolGap), y, m.symbolK, m.keyH);
       }
     }
   }
@@ -389,25 +397,23 @@
     else buildLandscapeLetters();
   }
 
+  function makeLandscapeRow(ri) {
+    const m = metrics;
+    const y = m.rowY[ri];
+    makeKey(D.outerLeft[ri], 0, y, m.outerW, m.keyH);
+    D.landLeft[ri].forEach(function (id, ci) {
+      makeKey(id, m.letterX + ci * (m.K + m.g), y, m.K, m.keyH);
+    });
+    D.landRight[ri].forEach(function (id, ci) {
+      makeKey(id, m.rightX + ci * (m.K + m.g), y, m.K, m.keyH);
+    });
+    makeKey(D.outerRight[ri], m.outerRightX, y, m.outerW, m.keyH);
+  }
+
   function buildLandscapeLetters() {
     const m = metrics;
-    for (let ri = 0; ri < 3; ri++) {
-      const y = ri * (m.keyH + m.g);
-      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
-
-      D.landLeft[ri].forEach(function (id, ci) {
-        makeKey(id, m.F + m.g + ci * (m.K + m.g), y, m.K, m.keyH);
-      });
-
-      const rightStart = m.kbW - m.F - m.g - (D.landRight[ri].length * m.K + (D.landRight[ri].length - 1) * m.g);
-      D.landRight[ri].forEach(function (id, ci) {
-        makeKey(id, rightStart + ci * (m.K + m.g), y, m.K, m.keyH);
-      });
-
-      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
-    }
-
-    makeKey('space', m.panelX, 2 * (m.keyH + m.g), m.C, m.keyH);
+    for (let ri = 0; ri < 3; ri++) makeLandscapeRow(ri);
+    makeKey('space', m.spaceX, m.spaceY, m.spaceW, m.spaceH);
 
     const panel = document.createElement('div');
     panel.className = 'candidate-panel';
@@ -422,17 +428,17 @@
   function buildLandscapeSymbols() {
     const m = metrics;
     for (let ri = 0; ri < 3; ri++) {
-      const y = ri * (m.keyH + m.g);
-      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
-      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
-      for (let c = 0; c < m.symCols; c++) {
-        const idx = state.symbolPage * symbolSlots() + ri * m.symCols + c;
+      const y = m.rowY[ri];
+      makeKey(D.outerLeft[ri], 0, y, m.outerW, m.keyH);
+      makeKey(D.outerRight[ri], m.outerRightX, y, m.outerW, m.keyH);
+      for (let c = 0; c < m.symbolCols; c++) {
+        const idx = state.symbolPage * symbolSlots() + ri * m.symbolCols + c;
         const sym = idx < D.symbols.length ? D.symbols[idx] : '';
         makeSymbolKey(
           sym,
-          m.symX + m.symPadX + c * (m.symCellW + m.g),
+          m.symbolX + c * (m.symbolCellW + m.g),
           y,
-          m.symCellW,
+          m.symbolCellW,
           m.keyH
         );
       }
@@ -441,18 +447,13 @@
 
   function buildLandscapeExpanded() {
     const m = metrics;
-    for (let ri = 0; ri < 3; ri++) {
-      const y = ri * (m.keyH + m.g);
-      makeKey(D.outerLeft[ri], 0, y, m.F, m.keyH);
-      makeKey(D.outerRight[ri], m.kbW - m.F, y, m.F, m.keyH);
-    }
-    // 候选区间与符号模式的中间区间完全一致：x=symX、宽=symW、高=键盘高。
+    for (let ri = 0; ri < 3; ri++) makeLandscapeRow(ri);
     const panel = document.createElement('div');
     panel.className = 'expanded-panel';
     panel.style.left = m.expX + 'px';
-    panel.style.top = '0px';
+    panel.style.top = m.expY + 'px';
     panel.style.width = m.expW + 'px';
-    panel.style.height = m.expPanelH + 'px';
+    panel.style.height = m.expH + 'px';
     els.keyboard.appendChild(panel);
     expandedPanelEl = panel;
   }
@@ -461,8 +462,7 @@
 
   function updateFloatingPreedit() {
     if (!state.keyboardVisible) return;
-    const inLandscapeExpanded = state.expanded && state.orientation === 'landscape';
-    const need = (state.composing || state.escape) && !inLandscapeExpanded;
+    const need = state.composing || state.escape;
     if (!need) {
       if (floatingPreeditEl) {
         floatingPreeditEl.remove();
@@ -479,8 +479,8 @@
       els.keyboard.appendChild(floatingPreeditEl);
     }
     if (state.orientation === 'landscape') {
-      floatingPreeditEl.style.left = metrics.panelX + 'px';
-      floatingPreeditEl.style.width = metrics.panelW + 'px';
+      floatingPreeditEl.style.left = metrics.pinyinX + 'px';
+      floatingPreeditEl.style.width = metrics.pinyinW + 'px';
     } else {
       floatingPreeditEl.style.left = '0px';
       floatingPreeditEl.style.width = '100%';
@@ -644,16 +644,16 @@
     const m = metrics;
     panel.innerHTML = '';
     if (!state.composing) return;
-    for (let r = 0; r < 6; r++) {
-      for (let c = 0; c < 4; c++) {
-        const idx = r * 4 + c;
+    for (let r = 0; r < m.panelRows; r++) {
+      for (let c = 0; c < m.panelCols; c++) {
+        const idx = r * m.panelCols + c;
         makeCandCell(
           panel,
           state.candidates[idx],
-          m.panelPadX + c * (m.panelCellW + m.g),
-          m.panelRowYs[r],
+          c * (m.panelCellW + m.g),
+          m.panelRowY[r],
           m.panelCellW,
-          S
+          m.panelCellH
         );
       }
     }
@@ -664,15 +664,15 @@
     const m = metrics;
     panel.innerHTML = '';
 
-    if (state.orientation === 'portrait') {
-      const bg = document.createElement('div');
-      bg.className = 'expanded-candidate-bg';
-      bg.style.left = '0px';
-      bg.style.top = '0px';
-      bg.style.width = '100%';
-      bg.style.height = m.expH + 'px';
-      panel.appendChild(bg);
+    const bg = document.createElement('div');
+    bg.className = 'expanded-candidate-bg';
+    bg.style.left = '0px';
+    bg.style.top = '0px';
+    bg.style.width = '100%';
+    bg.style.height = m.expH + 'px';
+    panel.appendChild(bg);
 
+    if (state.orientation === 'portrait') {
       // 顶部常驻候选行已显示前 5 个，展开区从第 6 个开始，补满 9 行。
       for (let r = 0; r < m.expRows; r++) {
         for (let c = 0; c < m.expCols; c++) {
@@ -681,45 +681,25 @@
             panel,
             state.candidates[idx],
             m.expSide + c * (m.expCellW + m.expGap),
-            r * m.expRowH,
+            r * (S + m.g),
             m.expCellW,
-            m.expRowH
+            S
           );
         }
       }
       return;
     }
 
-    const pre = document.createElement('div');
-    pre.className = 'expanded-preedit';
-    pre.style.left = '0px';
-    pre.style.top = m.expPreeditY + 'px';
-    pre.style.width = '100%';
-    pre.style.height = m.expRowH + 'px';
-    const preText = document.createElement('span');
-    preText.className = 'pinyin-text';
-    preText.textContent = state.preedit || state.composing;
-    pre.appendChild(preText);
-    panel.appendChild(pre);
-
-    const bg = document.createElement('div');
-    bg.className = 'expanded-candidate-bg';
-    bg.style.left = '0px';
-    bg.style.top = m.expRowsStart + 'px';
-    bg.style.width = '100%';
-    bg.style.height = (6 * m.expRowH) + 'px';
-    panel.appendChild(bg);
-
-    for (let r = 0; r < 6; r++) {
+    for (let r = 0; r < m.expRows; r++) {
       for (let c = 0; c < m.expCols; c++) {
         const idx = r * m.expCols + c;
         makeCandCell(
           panel,
           state.candidates[idx],
-          m.expPadX + c * (m.expCellW + m.expGap),
-          m.expRowsStart + r * m.expRowH,
+          c * (m.expCellW + m.g),
+          r * (S + m.g),
           m.expCellW,
-          m.expRowH
+          S
         );
       }
     }

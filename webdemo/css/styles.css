@@ -191,7 +191,7 @@ body {
   position: absolute;
   left: 0;
   right: auto;
-  bottom: 100%;
+  bottom: calc(100% + 4px);
   width: 100%;
   height: 32px;
   display: flex;
@@ -300,7 +300,8 @@ body {
   background: var(--key-bg);
   color: var(--text);
   display: grid;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-rows: 32px 32px 32px;
+  row-gap: 4px;
   place-items: center;
   user-select: none;
   -webkit-user-select: none;
@@ -404,10 +405,15 @@ body {
 
 .key.slide-up .up,
 .key.slide-down .down {
+  grid-area: 1 / 1 / -1 / -1;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: 0;
   color: var(--text);
 }
 
