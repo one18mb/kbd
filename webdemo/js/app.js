@@ -167,10 +167,13 @@
 
   function fitStage() {
     if (!metrics) return;
+    const fs = !!document.fullscreenElement;
+    if (els.controls) els.controls.classList.toggle('hidden', fs);
+    if (els.device) els.device.classList.toggle('actual', fs);
     const wrap = els.stageWrap;
     const availW = wrap.clientWidth;
     const availH = wrap.clientHeight;
-    stageScale = Math.min(availW / metrics.W, availH / metrics.H, 1);
+    stageScale = fs ? 1 : Math.min(availW / metrics.W, availH / metrics.H, 1);
     els.device.style.width = metrics.W + 'px';
     els.device.style.height = metrics.H + 'px';
     els.device.style.transform = 'translate(-50%, -50%) scale(' + stageScale + ')';
@@ -1466,6 +1469,7 @@
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('resize', fitStage);
+    document.addEventListener('fullscreenchange', fitStage);
     if (media.addEventListener) {
       media.addEventListener('change', function () {
         if (state.theme === 'auto') applyTheme();

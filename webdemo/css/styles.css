@@ -11,8 +11,9 @@
   --key: #282828;
   --text: #fff;
   --sub: #ccc;
-  --screen-bg: var(--bg);
-  --app-bg: var(--bg);
+  --app-surface: #202020;
+  --screen-bg: var(--app-surface);
+  --app-bg: var(--app-surface);
   --kbd-bg: var(--bg);
   --bar-bg: var(--bg);
   --key-bg: var(--key);
@@ -32,8 +33,9 @@
   --key: #fff;
   --text: #111;
   --sub: #666;
-  --screen-bg: var(--bg);
-  --app-bg: var(--bg);
+  --app-surface: #f3f3f3;
+  --screen-bg: var(--app-surface);
+  --app-bg: var(--app-surface);
   --kbd-bg: var(--bg);
   --bar-bg: var(--bg);
   --key-bg: var(--key);
@@ -106,6 +108,10 @@ body {
   color: #111;
 }
 
+.controls.hidden {
+  display: none;
+}
+
 .stage-wrap {
   flex: 1 1 auto;
   position: relative;
@@ -127,6 +133,11 @@ body {
   background: var(--screen-bg);
   border-radius: 16px;
   box-shadow: 0 0 0 1px #1a1a1a, 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+#device.actual {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 #appScreen {
