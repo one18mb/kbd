@@ -92,10 +92,10 @@
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
     ['arrowUp', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
     ['arrowDown', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'arrowLeft', 'arrowRight'],
-    ['shift', 'ctrl', 'alt', 'lang', 'space', 'backspace', 'enter']
+    ['ctrl', 'alt', 'shift', 'lang', 'space', 'backspace', 'enter']
   ];
 
-  const outerLeft = ['alt', 'ctrl', 'shift'];
+  const outerLeft = ['shift', 'alt', 'ctrl'];
   const outerRight = ['backspace', 'lang', 'enter'];
   const landLeft = [
     ['q', 'w', 'e', 'r', 't'],

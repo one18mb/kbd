@@ -7,10 +7,10 @@
 :root,
 :root[data-theme='dark'] {
   /* 4 色：背景、按键、主字、副字；反色只由这 4 色组合 */
-  --bg: #151515;
-  --key: #282828;
+  --bg: #000;
+  --key: #111;
   --text: #fff;
-  --sub: #ccc;
+  --sub: #555;
   --app-surface: #202020;
   --screen-bg: var(--app-surface);
   --app-bg: var(--app-surface);
@@ -20,7 +20,7 @@
   --sub-text: var(--sub);
   --active-bg: var(--text);
   --active-text: var(--key);
-  --active-sub: var(--bg);
+  --active-sub: var(--sub);
   --border: var(--bg);
   --muted: var(--sub);
   --toast-bg: var(--text);
@@ -29,10 +29,10 @@
 }
 
 :root[data-theme='light'] {
-  --bg: #ddd;
+  --bg: #f7f7f7;
   --key: #fff;
   --text: #111;
-  --sub: #666;
+  --sub: #9e9e9e;
   --app-surface: #f3f3f3;
   --screen-bg: var(--app-surface);
   --app-bg: var(--app-surface);
@@ -42,7 +42,7 @@
   --sub-text: var(--sub);
   --active-bg: var(--text);
   --active-text: var(--key);
-  --active-sub: var(--bg);
+  --active-sub: var(--sub);
   --border: var(--bg);
   --muted: var(--sub);
   --toast-bg: var(--text);

@@ -1,0 +1,22 @@
+# 第三方源码与数据（由 docs/dev-env.md 的脚本下载生成）
+third_party/
+
+# 由 scripts/sync-assets.sh 生成
+android/app/src/main/assets/engine/
+
+# Gradle / Android 构建产物
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/engine/build/
+local.properties
+*.apk
+
+# 宿主机构建目录
+build/
+/tmp/
+
+# 工具输出
+.trae-html-share-packages/

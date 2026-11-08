@@ -1,0 +1,121 @@
+/* 最小 std::format 兼容层。
+ * NDK r26 的 libc++（LLVM 17）尚未提供 <format>，而 fcitx-utils 的
+ * log.cpp / misc.cpp / semver.cpp 直接使用 std::format。
+ * 这里只实现本项目用到的子集：{}、{N}、{:格式}（格式串忽略），
+ * 时间点类型输出空串（Android 上不启用日志时间戳）。 */
+#ifndef KBD_COMPAT_STD_FORMAT
+#define KBD_COMPAT_STD_FORMAT
+
+#include <chrono>
+#include <cstddef>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
+namespace kbd_compat {
+
+template <typename T, typename = void>
+struct is_time_point : std::false_type {};
+template <typename T>
+struct is_time_point<T, std::void_t<typename T::clock, typename T::duration>>
+    : std::true_type {};
+
+inline void append(std::string &out, const std::string &v) { out += v; }
+inline void append(std::string &out, std::string_view v) {
+    out.append(v.data(), v.size());
+}
+inline void append(std::string &out, const char *v) { out += v; }
+inline void append(std::string &out, char v) { out += v; }
+inline void append(std::string &out, signed char v) {
+    out += std::to_string(static_cast<int>(v));
+}
+inline void append(std::string &out, unsigned char v) {
+    out += std::to_string(static_cast<unsigned>(v));
+}
+inline void append(std::string &out, bool v) { out += v ? "true" : "false"; }
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+void append(std::string &out, T v) {
+    out += std::to_string(v);
+}
+template <typename T, std::enable_if_t<is_time_point<T>::value, int> = 0>
+void append(std::string &out, const T &) {
+    /* 不实现日期格式化：Android 侧日志不输出时间戳。 */
+}
+template <typename T,
+          std::enable_if_t<!std::is_arithmetic_v<T> && !is_time_point<T>::value,
+                           int> = 0>
+void append(std::string &out, const T &v) {
+    std::ostringstream os;
+    os << v;
+    out += os.str();
+}
+
+template <size_t I, typename Tuple>
+void appendTuple(std::string &out, size_t index, const Tuple &t) {
+    if constexpr (I < std::tuple_size_v<Tuple>) {
+        if (I == index) {
+            append(out, std::get<I>(t));
+        } else {
+            appendTuple<I + 1>(out, index, t);
+        }
+    }
+}
+
+template <typename... Args>
+std::string formatArgs(std::string_view f, Args &&...args) {
+    auto t = std::forward_as_tuple(args...);
+    std::string out;
+    size_t autoIndex = 0;
+    for (size_t i = 0; i < f.size(); ++i) {
+        char c = f[i];
+        if (c == '{') {
+            if (i + 1 < f.size() && f[i + 1] == '{') {
+                out += '{';
+                ++i;
+                continue;
+            }
+            size_t j = f.find('}', i);
+            if (j == std::string_view::npos) {
+                out.append(f.substr(i));
+                break;
+            }
+            std::string_view spec = f.substr(i + 1, j - i - 1);
+            std::string_view head = spec.substr(0, spec.find(':'));
+            size_t index = autoIndex++;
+            if (!head.empty()) {
+                index = 0;
+                for (char ch : head) {
+                    if (ch >= '0' && ch <= '9') {
+                        index = index * 10 + static_cast<size_t>(ch - '0');
+                    }
+                }
+            }
+            appendTuple<0>(out, index, t);
+            i = j;
+        } else if (c == '}') {
+            if (i + 1 < f.size() && f[i + 1] == '}') {
+                out += '}';
+                ++i;
+            } else {
+                out += c;
+            }
+        } else {
+            out += c;
+        }
+    }
+    return out;
+}
+
+} // namespace kbd_compat
+
+namespace std {
+template <typename... Args>
+std::string format(std::string_view f, Args &&...args) {
+    return kbd_compat::formatArgs(f, std::forward<Args>(args)...);
+}
+} // namespace std
+
+#endif
