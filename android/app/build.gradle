@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+def keystoreFile = rootProject.file('keystore.properties')
+def keystore = new Properties()
+if (keystoreFile.exists()) {
+    keystore.load(new FileInputStream(keystoreFile))
+}
+
 android {
     namespace 'com.kbd.ime'
     compileSdk 34
@@ -12,7 +18,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName '0.1'
+        versionName '1.0'
         ndk {
             abiFilters 'arm64-v8a'
         }
@@ -36,9 +42,22 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile file(keystore['storeFile'])
+                storePassword keystore['storePassword']
+                keyAlias keystore['keyAlias']
+                keyPassword keystore['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig keystoreFile.exists()
+                    ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

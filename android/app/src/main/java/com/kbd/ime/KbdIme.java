@@ -35,6 +35,8 @@ public final class KbdIme extends InputMethodService implements KbdApp.Host {
         android.content.SharedPreferences prefs = getSharedPreferences("kbd", MODE_PRIVATE);
         app.theme = prefs.getInt("theme", KbdApp.THEME_AUTO);
         app.variant = prefs.getInt("variant", KbdApp.VARIANT_SIMPLE);
+        app.symbolRow = prefs.getInt("symbolRow", 0);
+        app.restoreBottomSafe(prefs.getInt("bottomSafe", -1));
         loadEngine();
     }
 
@@ -42,8 +44,14 @@ public final class KbdIme extends InputMethodService implements KbdApp.Host {
         new Thread(() -> {
             String error = null;
             try {
+                String scheme = getSharedPreferences("kbd", MODE_PRIVATE)
+                        .getString("scheme", "quanpin");
+                engine.setScheme(scheme);
                 File dir = EngineData.ensure(KbdIme.this);
-                engine.load(dir.getAbsolutePath());
+                File user = EngineData.userDir(KbdIme.this);
+                engine.load(dir.getAbsolutePath(), user.getAbsolutePath());
+                engine.setScheme(getSharedPreferences("kbd", MODE_PRIVATE)
+                        .getString("scheme", "quanpin"));
                 if (!engine.isReady()) {
                     error = "引擎未就绪";
                 }
@@ -66,33 +74,52 @@ public final class KbdIme extends InputMethodService implements KbdApp.Host {
         if (view == null) {
             view = new KbdInputView(this, app);
         }
+        app.setSystemBottomSafe(systemBottomInset());
         return view;
     }
 
     @Override
     public void onStartInputView(android.view.inputmethod.EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+        app.setSystemBottomSafe(systemBottomInset());
         app.restartComposition();
+    }
+
+    /** 系统底部安全区参考值（导航栏/手势条）。 */
+    private int systemBottomInset() {
+        try {
+            android.view.WindowInsets insets = getWindow().getWindow()
+                    .getDecorView().getRootWindowInsets();
+            if (insets != null) {
+                return insets.getInsets(android.view.WindowInsets.Type.systemBars()
+                        | android.view.WindowInsets.Type.systemGestures()).bottom;
+            }
+        } catch (Throwable ignored) {
+        }
+        return app.systemBottomSafe;
     }
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
         super.onFinishInputView(finishingInput);
         hideComposing();
+        engine.saveUserDict();
     }
 
     @Override
     public void onWindowHidden() {
         super.onWindowHidden();
         hideComposing();
+        engine.saveUserDict();
     }
 
     @Override
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         hideComposing();
+        app.setSystemBottomSafe(systemBottomInset());
         if (view != null) {
-            view.refreshOrientation();
+            view.refreshLayout();
         }
     }
 
@@ -194,6 +221,34 @@ public final class KbdIme extends InputMethodService implements KbdApp.Host {
                 .putInt("theme", theme)
                 .putInt("variant", variant)
                 .apply();
+    }
+
+    @Override
+    public void onSymbolRowChanged(int row) {
+        getSharedPreferences("kbd", MODE_PRIVATE).edit()
+                .putInt("symbolRow", row)
+                .apply();
+    }
+
+    @Override
+    public void onBottomSafeChanged(int b) {
+        getSharedPreferences("kbd", MODE_PRIVATE).edit()
+                .putInt("bottomSafe", b)
+                .apply();
+    }
+
+    @Override
+    public void onSchemeChanged(String scheme) {
+        getSharedPreferences("kbd", MODE_PRIVATE).edit()
+                .putString("scheme", scheme)
+                .apply();
+    }
+
+    @Override
+    public void onLayoutChanged() {
+        if (view != null) {
+            view.refreshLayout();
+        }
     }
 
     @Override

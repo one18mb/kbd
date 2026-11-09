@@ -12,6 +12,9 @@ android/app/build/
 android/app/.cxx/
 android/engine/build/
 local.properties
+android/keystore.properties
+*.jks
+*.keystore
 *.apk
 
 # 宿主机构建目录

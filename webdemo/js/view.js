@@ -30,15 +30,23 @@
   function init() {
     [
       'device', 'stageWrap', 'appScreen', 'editor', 'toast',
-      'keyboard', 'controls', 'orientationBtn', 'themeBtn',
+      'keyboard', 'controls', 'themeBtn',
       'demoBtn', 'symbolBtn', 'escapeBtn', 'showKbdBtn',
-      'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog'
+      'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog',
+      'presetSelect', 'wInput', 'hInput', 'rInput',
+      'modeSelect', 'layoutReadout'
     ].forEach(function (id) { els[id] = $(id); });
   }
 
   function setHandlers(h) { handlers = h; }
 
-  function setMetrics(m) { metrics = m; }
+  function setMetrics(m) {
+    metrics = m;
+    if (!els.device) return;
+    els.device.style.setProperty('--s', m.S + 'px');
+    els.device.style.setProperty('--g', m.g + 'px');
+    els.device.style.setProperty('--pad', m.preeditPad + 'px');
+  }
 
   // ---------- 舞台缩放 ----------
 
@@ -50,10 +58,9 @@
     var wrap = els.stageWrap;
     var availW = wrap.clientWidth;
     var availH = wrap.clientHeight;
-    // 全屏时按视口贴合：DPR=2 的设备上 720 设计像素正好铺满 360 CSS 宽，
-    // 即 1 个设计像素 = 1 个物理像素。非全屏时最多 1:1，避免放大模糊。
+    // 自适应预览：小屏幕放大到看得清，大屏幕缩到装得下；上限 4 倍。
     var fit = Math.min(availW / metrics.W, availH / metrics.H);
-    stageScale = fs ? fit : Math.min(fit, 1);
+    stageScale = Math.max(0.1, Math.min(fit, 4));
     els.device.style.width = metrics.W + 'px';
     els.device.style.height = metrics.H + 'px';
     els.device.style.transform = 'translate(-50%, -50%) scale(' + stageScale + ')';
@@ -173,12 +180,17 @@
     candidateBarEl = bar;
   }
 
+  // 第 4、5 列之间是中缝 c；c 可能比普通缝 g 大 1px。
+  function portraitX(m, col) {
+    return m.side + col * (m.K + m.g) + (col >= 5 ? (m.c - m.g) : 0);
+  }
+
   function buildPortraitLetters() {
     var m = metrics;
     D.portraitRows.slice(0, 3).forEach(function (row, ri) {
       var y = m.mainTop + ri * (m.keyH + m.g);
       row.forEach(function (id, ci) {
-        makeKey(id, m.side + ci * (m.K + m.g), y, m.K, m.keyH);
+        makeKey(id, portraitX(m, ci), y, m.K, m.keyH);
       });
     });
   }
@@ -187,10 +199,10 @@
     var m = metrics;
     for (var r = 0; r < 3; r++) {
       var y = m.symbolRows[r];
-      for (var c = 0; c < 10; c++) {
-        var idx = model.symbolPage * m.symbolSlots + r * 10 + c;
+      for (var c = 0; c < m.symbolCols; c++) {
+        var idx = model.symbolPage * m.symbolSlots + r * m.symbolCols + c;
         var sym = idx < D.symbols.length ? D.symbols[idx] : '';
-        makeSymbolKey(sym, m.symbolSide + c * (m.symbolK + m.symbolGap), y, m.symbolK, m.keyH);
+        makeSymbolKey(sym, portraitX(m, c), y, m.symbolK, m.keyH);
       }
     }
   }
@@ -212,7 +224,8 @@
     var x = m.side;
     D.portraitRows[3].forEach(function (id) {
       var def = D.keys[id];
-      var w = def.double ? m.double : m.K;
+      // 空格跨中缝，宽度是 2K+c；删除/回车是 2K+g。
+      var w = id === 'space' ? m.spaceW : (def.double ? m.double : m.K);
       makeKey(id, x, m.funcTop, w, m.keyH);
       x += w + m.g;
     });
@@ -281,6 +294,39 @@
 
   // ---------- 标签 ----------
 
+  var MOD_SHORT = { ctrl: 'Ct', alt: 'Al', shift: 'Sh' };
+
+  // Unifont 确定性宽度：全角 S，半角 S/2。
+  function labelWidth(text, s) {
+    var w = 0;
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      var full = c >= 0x1100 && (c <= 0x115F || c === 0x2329 || c === 0x232A
+        || (c >= 0x2E80 && c <= 0xA4CF && c !== 0x303F)
+        || (c >= 0xAC00 && c <= 0xD7A3)
+        || (c >= 0xF900 && c <= 0xFAFF)
+        || (c >= 0xFE30 && c <= 0xFE6F)
+        || (c >= 0xFF00 && c <= 0xFF60)
+        || (c >= 0xFFE0 && c <= 0xFFE6));
+      w += full ? s : s / 2;
+    }
+    return w;
+  }
+
+  function modifierLabel(def, model) {
+    var full = (def.main && (def.main[model.lang] || def.main.en)) || '';
+    var short = MOD_SHORT[def.mod];
+    if (!short || !metrics) return full;
+    var keyW = metrics.orientation === 'landscape' ? metrics.outerW : metrics.K;
+    // 三个修饰键同宽，按最长标签统一切换，避免 Ct/Alt/Sh 混排。
+    var widest = Math.max(
+      labelWidth('Ctrl', metrics.S),
+      labelWidth('Alt', metrics.S),
+      labelWidth('Shft', metrics.S)
+    );
+    return widest >= keyW - 2 ? short : full;
+  }
+
   function keyMainText(model, id) {
     var def = D.keys[id];
     if (!def) return '';
@@ -293,6 +339,7 @@
       return '确认';
     }
     if (id === 'space') return model.escape ? '\\' : '空格';
+    if (def.kind === 'modifier') return modifierLabel(def, model);
     if (def.kind === 'letter') return model.mods.shift.active ? id.toUpperCase() : id;
     return (def.main && (def.main[model.lang] || def.main.en)) || '';
   }
@@ -307,6 +354,15 @@
     var def = D.keys[id];
     if (!def) return '';
     return keySlideText(model, def, dir);
+  }
+
+  // Tab/Esc 放不下时缩成 Ta/Es，和 Android 渲染规则一致。
+  function fitSubLabel(label) {
+    if (!metrics) return label;
+    var w = metrics.K;
+    if (label === 'Tab' && labelWidth(label, metrics.S) > w - metrics.g) return 'Ta';
+    if (label === 'Esc' && labelWidth(label, metrics.S) > w - metrics.g) return 'Es';
+    return label;
   }
 
   function pageCount() {
@@ -328,8 +384,8 @@
       if (up) up.textContent = String(model.symbolPage + 1);
       if (down) down.textContent = String(pageCount());
     } else {
-      if (up) up.textContent = keySlideText(model, def, 'up');
-      if (down) down.textContent = keySlideText(model, def, 'down');
+      if (up) up.textContent = fitSubLabel(keySlideText(model, def, 'up'));
+      if (down) down.textContent = fitSubLabel(keySlideText(model, def, 'down'));
       if (!def.up && !def.down) el.classList.add('single');
     }
   }
@@ -429,8 +485,9 @@
     for (var r = 0; r < m.expRows; r++) {
       for (var c = 0; c < m.expCols; c++) {
         var idx = offset + r * m.expCols + c;
+        var y = m.expRowY ? m.expRowY[r] : r * (m.expCellH + m.g);
         makeCandCell(panel, model.candidates[idx],
-          x0 + c * (m.expCellW + m.g), r * (L.S + m.g), m.expCellW, L.S);
+          x0 + c * (m.expCellW + m.g), y, m.expCellW, m.expCellH);
       }
     }
   }
@@ -527,9 +584,24 @@
   }
 
   function updateControlText(model) {
-    els.orientationBtn.textContent = model.orientation === 'portrait' ? '横屏预览' : '竖屏预览';
     els.showKbdBtn.textContent = model.keyboardVisible ? '收起键盘' : '显示键盘';
     els.logBtn.textContent = model.logOpen ? '隐藏日志' : '事件日志';
+    if (els.layoutReadout && metrics) {
+      var m = metrics;
+      var flags = [];
+      if (m.gCappedByHeight) flags.push('g 受高度压制');
+      if (m.tBeyond) flags.push('k 超本级上限');
+      if (m.overflow) flags.push('超出屏幕');
+      if (!m.kbRatioOK) flags.push('键盘比越界');
+      els.layoutReadout.textContent =
+        (m.orientation === 'portrait' ? '竖屏' : '横屏') +
+        ' n=' + m.n + ' f=' + m.S + ' k=' + m.K + ' g=' + m.g + ' c=' + m.c + ' m=' + m.m +
+        ' | 键盘 ' + m.kbW + '×' + m.kbH + ' 比' + m.kbRatio.toFixed(2) +
+        ' | 应用 ' + (m.H - m.kbH) +
+        ' | W/H=' + m.ratio.toFixed(2) + ' R=' + m.R.toFixed(2) +
+        ' | ' + m.modeReason +
+        (flags.length ? ' | ' + flags.join('，') : '');
+    }
   }
 
   window.KBD.view = {

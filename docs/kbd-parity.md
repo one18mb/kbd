@@ -3,7 +3,7 @@
 > 唯一真值来源：`webdemo/`（`data.js`、`layout.js`、`view.js`、`input.js`、`app.js`、`styles.css`）。
 > 本文只描述**状态与结果**，不描述实现方式。滚动效果按你先前的要求单列，不纳入对齐。
 >
-> **前端已冻结（2026-11-08）**：除第 6 节 D1–D12 记录在案的平台差异外，显示与交互以本文为准；新需求先写进本文再改代码。
+> **2026-11-10 更新**：加入屏幕自适应与命令 overhaul；几何以 [kbd-adaptive.md](kbd-adaptive.md) 为准，本文同步记录行为真值表与 D1–D12。新需求先改本文再改代码。
 
 ---
 
@@ -14,7 +14,7 @@
 | `lang` | `zh` / `en` | 决定字母是走拼音还是直接上屏；决定上下滑标签取中文形态还是英文形态 |
 | `layer` | `letters` / `symbols` | 只影响主键区渲染 |
 | `escape` | bool | 转义态 |
-| `escapeBuffer` | 字符串，初值 `\`，上限 16 字符 | 转义缓冲 |
+| `escapeBuffer` | 字符串，初值 `\`，上限 24 字符 | 转义缓冲（容纳 `zh=zhongwenzhixing`） |
 | `mods.shift/ctrl/alt` | `{active, locked}` | 纯粘滞 |
 | `composing` | 字符串 | 原始按键串（小写字母），上限 40 |
 | `candidates` | 列表 + `preedit` | 由 composing 派生；`expanded` 由用户切换 |
@@ -133,14 +133,11 @@
 | 空 | 仅帮助信息，不执行；随后退出转义 |
 | `n` | 插入换行 |
 | `t` | 插入制表 |
-| `s` | 无可见效果（原型的“设置”动作只记日志） |
-| `j` | 无可见效果（原型的“简繁”动作只记日志） |
-| `hp` | 打开命令面板（不上屏），候选区显示 `简 sc / 繁 tc / 暗 dk / 亮 lt`（D12） |
-| `sc` | 简体输出（词典本身即简体） |
-| `tc` | 繁体输出（候选与上屏经平台简→繁转换，见 D12） |
-| `dk` | 暗皮肤（覆盖系统主题） |
-| `lt` | 亮皮肤（覆盖系统主题） |
-| `au` | 恢复自动（跟随系统深浅色）；以上效果持久化 |
+| `sb=数字` | 覆盖底部安全区 b（0–200px），持久化 |
+| `sb=auto` | 底部安全区恢复系统 inset |
+| `zh=方案` | 切换输入方案；`quanpin` + 8 种内置双拼，见 kbd-backend §7 |
+| `sk=dark` / `sk=light` / `sk=auto` | 暗色 / 亮色 / 跟随系统，持久化 |
+| `st=s` / `st=t` | 简体 / 繁体，持久化 |
 | `u` + 4 位十六进制 | 插入该码点字符 |
 | `u{1–6 位十六进制}` | 同上 |
 | 非法码点 / 其他 `u…` / 未知 | 不插入 |
@@ -281,23 +278,24 @@
 | D9 | ctrl/alt 组合键在原型里只记录、不发送 | 原生：未组词时按物理键位发 KeyEvent——字母、数字、ASCII 标点（含 Shift 层，如 `!` `@` `[` `;`）→ 对应 keyCode + `META_CTRL`/`META_ALT`（可再叠 `META_SHIFT`）；方向键、删除、Tab、Esc 同理；中文标签先经 NFKC 折叠（`！`→`!`）；无物理键码的符号（`……`、`×`、`￥`）仍按文本插入；组词中仍拦截 |
 | D10 | 原型锁定修饰键时右上角画 6×6 角点 | 原生不画角点（你的要求）；锁定态只表现为反色 + 不自动取消 |
 | D11 | 中文 `f` 键上下滑在原型里是固定 `“` / `‘` | 改为循环：上滑依次 `“` `”` `“`…，下滑依次 `‘` `’` `‘`…，键上标签随之变化；英文模式仍是 `"` / `'` |
-| D12 | 原型无内部命令面板 | `\hp` 打开命令面板（不上屏），复用候选区：可变宽、可展开（确认切换）、可点按、可滚动；条目 `sc/tc/dk/lt/au`。`dk/lt/au` 覆盖/恢复系统深浅色；主题与简繁持久化到 `SharedPreferences`。词典为简体数据，`tc` 用平台 ICU `Hans-Hant` 转换候选与上屏文本，无可用转换数据时保持原文 |
+| D12 | 原型无内部命令面板 | 2026-11-10：`\hp` 命令面板已删除；主题用 `\sk=dark|light|auto`，简繁用 `\st=s|t`，`\j`/`\s` 和旧 `sc/tc/dk/lt/au` 均已删除。KBD 入口由桌面图标打开 MainActivity 帮助页。主题与简繁持久化到 `SharedPreferences`。词典为简体数据，`\st=t` 用平台 ICU `Hans-Hant` 转换候选与上屏文本，无可用转换数据时保持原文 |
 
 ---
 
-## 7. 代码结构（已冻结）
+## 7. 代码结构（2026-11-10 自适应与命令更新）
 
 | 文件 | 对应原型 | 职责 |
 | --- | --- | --- |
-| `KbdData.java` | `data.js` | 纯数据：标点映射、26 键、竖/横三组行、符号表、转义命令、内部命令表 `COMMANDS`（code/label/action 单一数据源） |
-| `KbdLayout.java` | `layout.js` | 纯几何：竖屏/横屏两套档位；候选流式装箱（偶数键宽、超长跨行） |
-| `KbdRenderer.java` | `view.js` | 只画：竖/横分层、命令面板、转义、候选；不持状态 |
+| `KbdData.java` | `data.js` | 纯数据：标点映射、26 键、竖/横三组行、符号表、转义命令、输入方案表 `SCHEMES` |
+| `KbdLayout.java` | `layout.js` | 纯几何：输入 `(W,H,b)` 计算模式与自适应档位；候选流式装箱（偶数键宽、超长跨行） |
+| `KbdRenderer.java` | `view.js` | 只画：竖/横分层、转义、候选、动态字号、修饰键短标签；不持状态 |
 | `KbdGestures.java` | `input.js` | 只识别：竖/横命中、长按/连发/滑动/滚动；产出语义事件 |
-| `KbdApp.java` | `app.js` | 唯一状态持有者：输入、候选、转义、命令面板、主题/简繁；不绘制 |
-| `KbdInputView.java` | — | Android View 适配：Canvas Sink、触摸转发、方向重建、长按计时 |
-| `KbdPreeditView.java` | `.floating-preedit` | 键盘外拼音浮层（32px、文字宽、无圆角、4px 补满） |
+| `KbdApp.java` | `app.js` | 唯一状态持有者：输入、候选、转义、主题/简繁、方案；不绘制 |
+| `KbdInputView.java` | — | Android View 适配：Canvas Sink、触摸转发、`(W,H,b)` 布局缓存、长按计时 |
+| `KbdPreeditView.java` | `.floating-preedit` | 键盘外拼音浮层（动态字号、文字宽、无圆角、间隔补满） |
 | `KbdUi.java` | — | 夜间判定 + Unifont 加载（三处共用） |
-| `KbdIme.java` | — | 生命周期 + `KbdApp.Host`（浮层、KeyEvent、ICU 简繁、SharedPreferences） |
+| `KbdIme.java` | — | 生命周期 + `KbdApp.Host`（浮层、KeyEvent、ICU 简繁、SharedPreferences、系统 inset、方案持久化） |
+| `MainActivity.java` | — | 桌面图标打开的 KBD 入口：完整帮助页（`\zh` / `\sb` / `\sk` / `\st` / 手势） |
 | `EngineBridge` / `LibimeEngine` / `EngineData` | — | 引擎接口 / JNI 封装 / assets 解压 |
 
 约束：`KbdGestures` 不写状态、`KbdRenderer` 不写状态、`KbdApp` 不碰 Canvas/Android；`KbdLayout` 只做数值。
@@ -306,7 +304,7 @@
 
 ## 8. 验收
 
-1. **动作表测试**：纯 Java，`scripts/parity/ParityTests.java`，现 118 条，覆盖竖屏/横屏/命令面板/组合键/转义。
-2. **渲染快照**：`KbdRenderer` + 宿主端 Sink 输出 PNG，现 16 张，覆盖空闲、组词、展开、符号、英文+Shift、转义、按下、滑动、超长候选、横屏字母/符号/展开、命令面板、深/浅两套皮肤。
+1. **动作表测试**：纯 Java，`scripts/parity/ParityTests.java`，现 131 条，覆盖竖屏/横屏/方案切换/组合键/转义/`\sb`/`\zh`/`\sk`/`\st`。
+2. **渲染快照**：`KbdRenderer` + 宿主端 Sink 输出 PNG，现 20 张，覆盖空闲、组词、展开、符号、英文+Shift、转义、按下、滑动、超长候选、横屏字母/符号/展开、深/浅两套皮肤，以及 768×1024 / 800×800 / 300×260 / 160×256 自适应落点。
 3. **几何断言**：竖屏（496/320/108/718/532、候选偶数键宽 2/4/6/8/10）与横屏（320、外列 84/140、中列 588/428、符号 16 列 1148、候选 6 键一行）。
 4. 只有第 6 节的 D1–D12 允许与原型不同，且必须写在文档里。

@@ -142,8 +142,7 @@ final class KbdGestures {
             return true;
         }
 
-        float panelH = layout.s(app.expanded
-                ? KbdLayout.CAND_PANEL_H : KbdLayout.LAND_PANEL_H);
+        float panelH = app.expanded ? layout.kbH : layout.landPanelH;
         if (hitLandscapeCandidate(x, y, panelH)) {
             return true;
         }
@@ -229,8 +228,8 @@ final class KbdGestures {
         }
 
         float dy = y - session.startY;
-        float enter = layout.s((int) SLIDE_ENTER);
-        float exit = layout.s((int) SLIDE_EXIT);
+        float enter = Math.max(1f, layout.S * SLIDE_ENTER / 32f);
+        float exit = Math.max(1f, layout.S * SLIDE_EXIT / 32f);
 
         if (session.mode == KbdRenderer.MODE_PENDING) {
             if (dy <= -enter) {
@@ -255,7 +254,7 @@ final class KbdGestures {
 
     private int rowsFor(float y) {
         float step = app.symbols
-                ? (layout.keyH + layout.s(KbdLayout.G))
+                ? (layout.keyH + layout.g)
                 : (layout.expRowH + layout.expGap);
         float dy = session.startY - y;
         int rows = (int) (Math.abs(dy) / Math.max(1f, step)) * (dy >= 0 ? 1 : -1);
@@ -395,7 +394,7 @@ final class KbdGestures {
 
     /** 展开面板：按流式行/可变宽度命中，序号即候选序号。 */
     private boolean hitPanelCandidate(float x, float y) {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(app.candidates);
+        List<KbdLayout.CandRow> rows = layout.candidateRows(app.candidates);
         float top = layout.expTop;
         float bottom = layout.expTop + layout.expH;
         for (int ri = app.candidateRow + 1; ri < rows.size(); ri++) {
@@ -416,7 +415,7 @@ final class KbdGestures {
                     return true;
                 }
             }
-            top += h + layout.s(KbdLayout.G);
+            top += h + layout.g;
         }
         return false;
     }
@@ -480,8 +479,8 @@ final class KbdGestures {
     }
 
     private boolean hitLandscapeCandidate(float x, float y, float panelH) {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(
-                app.candidates, KbdLayout.LAND_ROW_KEYS);
+        List<KbdLayout.CandRow> rows = layout.candidateRows(
+                app.candidates, layout.landRowKeys);
         float top = 0;
         for (int ri = app.candidateRow; ri < rows.size(); ri++) {
             KbdLayout.CandRow row = rows.get(ri);
@@ -501,7 +500,7 @@ final class KbdGestures {
                     return true;
                 }
             }
-            top += h + layout.s(KbdLayout.G);
+            top += h + layout.g;
         }
         return false;
     }

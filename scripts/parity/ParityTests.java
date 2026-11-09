@@ -17,6 +17,10 @@ public final class ParityTests {
         String composing = "";
         int savedTheme = -1;
         int savedVariant = -1;
+        int savedSymbolRow = -1;
+        int savedBottomSafe = -1;
+        String savedScheme;
+        int layoutChanges;
         boolean hidden;
         int invalidations;
 
@@ -46,6 +50,22 @@ public final class ParityTests {
             savedVariant = variant;
         }
 
+        public void onSymbolRowChanged(int row) {
+            savedSymbolRow = row;
+        }
+
+        public void onBottomSafeChanged(int b) {
+            savedBottomSafe = b;
+        }
+
+        public void onSchemeChanged(String scheme) {
+            savedScheme = scheme;
+        }
+
+        public void onLayoutChanged() {
+            layoutChanges++;
+        }
+
         public void hideKeyboard() {
             hidden = true;
         }
@@ -70,6 +90,7 @@ public final class ParityTests {
     private static KbdApp newApp(Host host) {
         KbdApp app = new KbdApp(host);
         app.status = "";
+        app.setLayout(new KbdLayout(720, 1604, 32));
         return app;
     }
 
@@ -92,7 +113,7 @@ public final class ParityTests {
 
     // 手势层：长按触发后，松手不得再执行点按（webdemo input.js 的 long/repeat 态）
     private static void longPressRelease() {
-        KbdLayout L = new KbdLayout(720, false);
+        KbdLayout L = new KbdLayout(720, 1604, 32);
         KbdGestures.Timer timer = new KbdGestures.Timer() {
             public void armLongPress() {
             }
@@ -144,26 +165,27 @@ public final class ParityTests {
 
     // 候选格：最小 2 键宽，偶数倍键宽，超长跨行
     private static void candidateWidths() {
-        check("候选最小 2 键宽 = 140", KbdLayout.candCellBase(2) == 140);
-        check("候选最大 10 键宽 = 716", KbdLayout.candCellBase(10) == 716);
+        KbdLayout L = new KbdLayout(720, 1604, 32);
+        check("候选最小 2 键宽 = 140", L.candCellBase(2) == 140);
+        check("候选最大 10 键宽 = 716", L.candCellBase(10) == 716);
         check("4 键宽 = 284 / 6 键宽 = 428",
-                KbdLayout.candCellBase(4) == 284 && KbdLayout.candCellBase(6) == 428);
-        check("你 → 2 键", KbdLayout.candKeys("你") == 2);
-        check("中华人民共和国 → 4 键", KbdLayout.candKeys("中华人民共和国") == 4);
+                L.candCellBase(4) == 284 && L.candCellBase(6) == 428);
+        check("你 → 2 键", L.candKeys("你") == 2);
+        check("中华人民共和国 → 4 键", L.candKeys("中华人民共和国") == 4);
         check("中华人民共和国成立 → 6 键",
-                KbdLayout.candKeys("中华人民共和国成立") == 6);
+                L.candKeys("中华人民共和国成立") == 6);
 
         String veryLong = "中华人民共和国万岁中华人民共和国万岁中华人民共和国万岁";
         check("超一整行 → 10 键 + 折成 2 行",
-                KbdLayout.candKeys(veryLong) == 10
-                        && KbdLayout.candLines(veryLong).length == 2);
+                L.candKeys(veryLong) == 10
+                        && L.candLines(veryLong).length == 2);
 
         List<String> pack = new ArrayList<>();
         pack.add("中华人民共和国");
         pack.add("你好");
         pack.add("拟好");
         pack.add("你");
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(pack);
+        List<KbdLayout.CandRow> rows = L.candidateRows(pack);
         check("装箱：4+2+2+2 = 一行 10 键、4 格",
                 rows.size() == 1 && rows.get(0).keys == 10 && rows.get(0).items.size() == 4);
     }
@@ -293,11 +315,13 @@ public final class ParityTests {
         for (int i = 0; i < 30; i++) {
             app.candidates.add("候" + i);
         }
+        KbdLayout L = new KbdLayout(1604, 720, 32);
+        app.setLayout(L);
         app.setLandscape(true);
         check("横屏符号每行 16 列", app.symbolCols() == 16);
 
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(
-                app.candidates, KbdLayout.LAND_ROW_KEYS);
+        List<KbdLayout.CandRow> rows = L.candidateRows(
+                app.candidates, L.landRowKeys);
         check("横屏 6 键一行 → 30 个候选 = 10 行", rows.size() == 10);
         check("横屏首行满 6 键、3 格",
                 rows.get(0).keys == 6 && rows.get(0).items.size() == 3);
@@ -313,11 +337,12 @@ public final class ParityTests {
 
     // 横屏手势：字母簇与空格
     private static void landscapeGestures() {
-        KbdLayout L = new KbdLayout(1604, true);
+        KbdLayout L = new KbdLayout(1604, 720, 32);
 
         Host h = new Host();
         KbdApp app = newApp(h);
         app.chinese = false;
+        app.setLayout(L);
         app.setLandscape(true);
         KbdGestures g = new KbdGestures(L, app, noTimer());
         float[] q = L.landLeftRect(0, 0);
@@ -330,6 +355,7 @@ public final class ParityTests {
         Host h2 = new Host();
         KbdApp app2 = newApp(h2);
         app2.chinese = false;
+        app2.setLayout(L);
         app2.setLandscape(true);
         KbdGestures g2 = new KbdGestures(L, app2, noTimer());
         float[] space = L.landSpaceRect();
@@ -353,66 +379,83 @@ public final class ParityTests {
         };
     }
 
-    // 内部命令：\hp 面板 + sc/tc/dk/lt
+    // 命令：\sk=dark|light|auto、\st=s|t、\sb、\zh；\hp/\j/\s/旧命令已删除
     private static void commands() {
         Host h = new Host();
         KbdApp app = newApp(h);
 
+        for (String removed : new String[]{"\\hp", "\\j", "\\s", "\\sc", "\\dk", "\\lt", "\\au"}) {
+            app.escape = true;
+            app.escapeBuffer = removed;
+            check(removed + " 已删除", !app.escapePreview().valid);
+        }
+
         app.escape = true;
-        app.escapeBuffer = "\\hp";
+        app.escapeBuffer = "\\sk=dark";
+        KbdApp.Preview sk = app.escapePreview();
+        check("\\sk=dark 预览", sk.valid && "dark".equals(sk.action));
         app.executeEscape();
-        check("\\hp → 命令面板", app.commands && !app.escape);
-        check("面板 5 条 sc/tc/dk/lt/au", app.candidates.size() == 5);
-
-        app.tapKey("enter");
-        check("面板可展开", app.expanded);
-        app.tapKey("enter");
-        check("再按确认收起", !app.expanded);
-
-        app.commitCandidate(2);
-        check("点 dk → 暗皮肤", app.theme == KbdApp.THEME_DARK && !app.commands);
-        check("dk 覆盖系统亮色", app.isDark(false));
-        check("dk 已持久化", h.savedTheme == KbdApp.THEME_DARK
+        check("\\sk=dark → 暗皮肤", app.theme == KbdApp.THEME_DARK && !app.escape);
+        check("sk 覆盖系统亮色", app.isDark(false));
+        check("sk 已持久化", h.savedTheme == KbdApp.THEME_DARK
                 && h.savedVariant == KbdApp.VARIANT_SIMPLE);
+
         app.escape = true;
-        app.escapeBuffer = "\\lt";
+        app.escapeBuffer = "\\sk=light";
         app.executeEscape();
-        check("\\lt → 亮皮肤", app.theme == KbdApp.THEME_LIGHT && !app.isDark(true));
+        check("\\sk=light → 亮皮肤", app.theme == KbdApp.THEME_LIGHT && !app.isDark(true));
+
         app.escape = true;
-        app.escapeBuffer = "\\tc";
+        app.escapeBuffer = "\\sk=auto";
         app.executeEscape();
-        check("\\tc → 繁体", app.variant == KbdApp.VARIANT_TRAD);
-        check("tc 已持久化", h.savedVariant == KbdApp.VARIANT_TRAD);
-        app.escape = true;
-        app.escapeBuffer = "\\sc";
-        app.executeEscape();
-        check("\\sc → 简体", app.variant == KbdApp.VARIANT_SIMPLE);
-        app.escape = true;
-        app.escapeBuffer = "\\au";
-        app.executeEscape();
-        check("\\au → 自动主题", app.theme == KbdApp.THEME_AUTO
+        check("\\sk=auto → 自动主题", app.theme == KbdApp.THEME_AUTO
                 && h.savedTheme == KbdApp.THEME_AUTO);
         check("自动跟随系统", app.isDark(true) && !app.isDark(false));
 
         app.escape = true;
-        app.escapeBuffer = "\\hp";
+        app.escapeBuffer = "\\st=t";
         app.executeEscape();
-        app.commitCandidate(1);
-        check("点 tc → 繁体", app.variant == KbdApp.VARIANT_TRAD && !app.commands);
+        check("\\st=t → 繁体", app.variant == KbdApp.VARIANT_TRAD);
+        check("st 已持久化", h.savedVariant == KbdApp.VARIANT_TRAD);
+        app.escape = true;
+        app.escapeBuffer = "\\st=s";
+        app.executeEscape();
+        check("\\st=s → 简体", app.variant == KbdApp.VARIANT_SIMPLE);
 
         app.escape = true;
-        app.escapeBuffer = "\\hp";
-        app.executeEscape();
-        app.commitCandidate(4);
-        check("点 au → 自动", app.theme == KbdApp.THEME_AUTO && !app.commands);
+        app.escapeBuffer = "\\sk=blue";
+        check("\\sk 非法值无效", !app.escapePreview().valid);
+        app.escape = true;
+        app.escapeBuffer = "\\st=x";
+        check("\\st 非法值无效", !app.escapePreview().valid);
 
         app.escape = true;
-        app.escapeBuffer = "\\hp";
+        app.escapeBuffer = "\\zh=xiaohe";
+        KbdApp.Preview zh = app.escapePreview();
+        check("\\zh=xiaohe 预览", zh.valid && "xiaohe".equals(zh.scheme));
         app.executeEscape();
-        app.chinese = false;
-        app.tapKey("a");
-        check("面板上按字母 → 关面板并输入",
-                !app.commands && "a".equals(h.committed.toString()));
+        check("\\zh=xiaohe 持久化", "xiaohe".equals(h.savedScheme));
+
+        app.escape = true;
+        app.escapeBuffer = "\\zh=quanpin";
+        app.executeEscape();
+        check("\\zh=quanpin 持久化", "quanpin".equals(h.savedScheme));
+
+        app.escape = true;
+        app.escapeBuffer = "\\zh=nope";
+        KbdApp.Preview bad = app.escapePreview();
+        check("未知方案无效", !bad.valid);
+        check("方案列表 9 项", KbdData.SCHEMES.size() == 9);
+
+        KbdApp longApp = newApp(new Host());
+        longApp.escape = true;
+        longApp.escapeBuffer = "\\";
+        for (char c : "zh=zhongwenzhixing".toCharArray()) {
+            longApp.appendEscape(String.valueOf(c));
+        }
+        KbdApp.Preview longName = longApp.escapePreview();
+        check("最长方案名可输入", longName.valid
+                && "zhongwenzhixing".equals(longName.scheme));
     }
 
     public static void main(String[] args) {
@@ -434,6 +477,7 @@ public final class ParityTests {
         landscapeMode();
         landscapeGestures();
         commands();
+        bottomSafeCommand();
         longPressRelease();
         tapSymbol();
         commitBlocks();
@@ -726,12 +770,39 @@ public final class ParityTests {
 
         comp.scrollCandidates(100);
         check("候选滚到末行（常驻行计入可见 10 行）",
-                comp.candidateRow == KbdLayout.candScrollMax(
-                        KbdLayout.candidateRows(comp.candidates)));
+                comp.candidateRow == comp.layout.candScrollMax(
+                        comp.layout.candidateRows(comp.candidates)));
         check("末行末格 = 列表最后一个",
                 comp.panelRow(8) != null && comp.panelRow(8).items.get(4).index == 79);
         comp.scrollCandidates(-100);
         check("候选回到首行", comp.candidateRow == 0);
+    }
+
+    // \sb=num / \sb=auto
+    private static void bottomSafeCommand() {
+        Host h = new Host();
+        KbdApp app = newApp(h);
+        app.escape = true;
+        app.escapeBuffer = "\\sb=32";
+        KbdApp.Preview p = app.escapePreview();
+        check("\\sb=32 预览", p.valid && p.bottomSafe != null && p.bottomSafe == 32);
+        app.executeEscape();
+        check("\\sb=32 生效并持久化", app.bottomSafe() == 32 && h.savedBottomSafe == 32);
+
+        Host h2 = new Host();
+        KbdApp app2 = newApp(h2);
+        app2.escape = true;
+        app2.escapeBuffer = "\\sb=auto";
+        app2.executeEscape();
+        check("\\sb=auto 恢复自动",
+                app2.bottomSafe() == app2.systemBottomSafe && h2.savedBottomSafe == -1);
+
+        Host h3 = new Host();
+        KbdApp app3 = newApp(h3);
+        app3.escape = true;
+        app3.escapeBuffer = "\\sb=999";
+        KbdApp.Preview p3 = app3.escapePreview();
+        check("\\sb 上限 200", p3.valid && p3.bottomSafe != null && p3.bottomSafe == 200);
     }
 
     // 2.12

@@ -1,7 +1,6 @@
 package com.kbd.ime;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -103,33 +102,24 @@ final class KbdData {
     static final String[][] PORTRAIT_ROWS;
     static final List<String> SYMBOLS;
 
-    /** 内部命令：code（转义输入）、label（命令面板）、action（执行动作）。 */
-    static final class Command {
-        final String code;
-        final String label;
-        final String action;
+    /** 输入方案：libime 内置 8 种双拼 + 全拼。 */
+    static final Map<String, String> SCHEMES = new LinkedHashMap<>();
 
-        Command(String code, String label, String action) {
-            this.code = code;
-            this.label = label;
-            this.action = action;
-        }
+    static {
+        SCHEMES.put("quanpin", "全拼");
+        SCHEMES.put("xiaohe", "小鹤双拼");
+        SCHEMES.put("ziranma", "自然码");
+        SCHEMES.put("ms", "微软双拼");
+        SCHEMES.put("ziguang", "紫光双拼");
+        SCHEMES.put("abc", "智能ABC");
+        SCHEMES.put("zhongwenzhixing", "中文之星");
+        SCHEMES.put("pinyinjiajia", "拼音加加");
+        SCHEMES.put("gb", "国标双拼");
     }
 
-    /** 命令面板顺序，同时也是转义命令表的数据源。 */
-    static final List<Command> COMMANDS = Arrays.asList(
-            new Command("sc", "简 sc", "simple"),
-            new Command("tc", "繁 tc", "trad"),
-            new Command("dk", "暗 dk", "dark"),
-            new Command("lt", "亮 lt", "light"),
-            new Command("au", "自 au", "auto"));
-
-    static List<String> commandLabels() {
-        List<String> labels = new ArrayList<>();
-        for (Command c : COMMANDS) {
-            labels.add(c.label);
-        }
-        return labels;
+    static String schemeLabel(String code) {
+        String label = SCHEMES.get(code);
+        return label == null ? code : label;
     }
 
     // 横屏：左右外列 + 左右字母簇（对应 webdemo landscape）
@@ -265,12 +255,6 @@ final class KbdData {
 
         ESCAPE_COMMANDS.put("n", new EscapeCommand("换行", "text", "\n"));
         ESCAPE_COMMANDS.put("t", new EscapeCommand("制表", "text", "\t"));
-        ESCAPE_COMMANDS.put("s", new EscapeCommand("设置", "action", "settings"));
-        ESCAPE_COMMANDS.put("j", new EscapeCommand("简繁", "action", "variant"));
-        ESCAPE_COMMANDS.put("hp", new EscapeCommand("命令面板", "action", "commands"));
-        for (Command c : COMMANDS) {
-            ESCAPE_COMMANDS.put(c.code, new EscapeCommand(c.label, "action", c.action));
-        }
 
         SYMBOLS = buildSymbols();
     }

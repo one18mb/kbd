@@ -36,6 +36,15 @@ final class EngineData {
         return dir;
     }
 
+    /** 可写的用户数据目录（自学习历史等）。 */
+    static File userDir(Context context) {
+        File dir = new File(context.getFilesDir(), DIR + "-user");
+        if (!dir.isDirectory()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
     private static boolean isUsable(File file) {
         return file.isFile() && file.length() > 0;
     }

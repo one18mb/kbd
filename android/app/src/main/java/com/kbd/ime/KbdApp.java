@@ -31,6 +31,18 @@ final class KbdApp {
         /** 命令效果已改变（主题/简繁），用于持久化。 */
         void onSettingsChanged(int theme, int variant);
 
+        /** 符号面板当前行变化，用于持久化。 */
+        void onSymbolRowChanged(int row);
+
+        /** 底部安全区覆盖值变化（-1 = 自动），用于持久化。 */
+        void onBottomSafeChanged(int b);
+
+        /** 输入方案变化，用于持久化。 */
+        void onSchemeChanged(String scheme);
+
+        /** 几何参数变化，需要重建布局。 */
+        void onLayoutChanged();
+
         void hideKeyboard();
 
         void invalidate();
@@ -58,7 +70,7 @@ final class KbdApp {
 
     static final int CANDIDATE_LIMIT = 128;
     static final int MAX_COMPOSING = 40;
-    static final int MAX_ESCAPE = 16;
+    static final int MAX_ESCAPE = 24;   // 需容纳 \zh=zhongwenzhixing
 
     static final int THEME_AUTO = 0;
     static final int THEME_DARK = 1;
@@ -73,13 +85,18 @@ final class KbdApp {
 
     final Host host;
     LibimeEngine engine;
+    KbdLayout layout;    // 由输入视图设置；几何与模式从布局读取
+
+    /** 系统底部安全区参考值（px）。 */
+    int systemBottomSafe = 32;
+    /** -1 = 跟随系统，>=0 = \sb 覆盖值。 */
+    int bottomSafeOverride = -1;
 
     boolean chinese = true;
     boolean symbols;
     int symbolRow;
-    boolean landscape;   // 由输入视图按屏幕方向设置
+    boolean landscape;   // 由输入视图按 KbdLayout 设置
 
-    boolean commands;    // 命令面板（\hp）
     int theme = THEME_AUTO;
     int variant = VARIANT_SIMPLE;
 
@@ -93,7 +110,7 @@ final class KbdApp {
     boolean expanded;
     int candidateRow;
 
-    String status = "引擎加载中…";
+    String status = "";
 
     /** 中文 f 键引号循环：true = 下一次插入左引号。 */
     boolean quoteDoubleOpen = true;
@@ -117,15 +134,61 @@ final class KbdApp {
         refreshFromEngine();
     }
 
+    // ---------- 几何输入 ----------
+
+    void setLayout(KbdLayout layout) {
+        this.layout = layout;
+    }
+
+    int bottomSafe() {
+        return bottomSafeOverride >= 0 ? bottomSafeOverride : systemBottomSafe;
+    }
+
+    void restoreBottomSafe(int value) {
+        bottomSafeOverride = value;
+    }
+
+    void setSystemBottomSafe(int value) {
+        int next = Math.max(0, value);
+        if (systemBottomSafe == next) {
+            return;
+        }
+        systemBottomSafe = next;
+        if (bottomSafeOverride < 0) {
+            host.onLayoutChanged();
+        }
+    }
+
+    void setBottomSafe(int value) {
+        bottomSafeOverride = Math.max(0, Math.min(200, value));
+        host.onBottomSafeChanged(bottomSafeOverride);
+        host.onLayoutChanged();
+    }
+
+    void setBottomSafeAuto() {
+        bottomSafeOverride = -1;
+        host.onBottomSafeChanged(-1);
+        host.onLayoutChanged();
+    }
+
     void setStatus(String message) {
         status = message;
         host.invalidate();
     }
 
-    private void refreshFromEngine() {
-        if (commands) {
+    void setScheme(String scheme) {
+        if (!KbdData.SCHEMES.containsKey(scheme)) {
             return;
         }
+        if (engine != null) {
+            engine.setScheme(scheme);
+        }
+        host.onSchemeChanged(scheme);
+        refreshFromEngine();
+        host.invalidate();
+    }
+
+    private void refreshFromEngine() {
         if (engine == null || !engine.isReady()) {
             preedit = "";
             candidates = new ArrayList<>();
@@ -188,7 +251,10 @@ final class KbdApp {
 
     /** 常驻候选行：与展开面板同属一个序列，滚动时随 candidateRow 一起移动。 */
     KbdLayout.CandRow barRow() {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(candidates);
+        if (layout == null) {
+            return null;
+        }
+        List<KbdLayout.CandRow> rows = layout.candidateRows(candidates);
         if (rows.isEmpty()) {
             return null;
         }
@@ -197,18 +263,15 @@ final class KbdApp {
 
     /** 展开面板：第 row 行（0 = 常驻行的下一行）。 */
     KbdLayout.CandRow panelRow(int row) {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(candidates);
+        if (layout == null) {
+            return null;
+        }
+        List<KbdLayout.CandRow> rows = layout.candidateRows(candidates);
         int index = candidateRow + 1 + row;
         return index >= 0 && index < rows.size() ? rows.get(index) : null;
     }
 
     void commitCandidate(int index) {
-        if (commands) {
-            if (index >= 0 && index < KbdData.COMMANDS.size()) {
-                runCommand(index);
-            }
-            return;
-        }
         if (index >= 0 && index < candidates.size()) {
             commitIndex(index);
         }
@@ -230,43 +293,8 @@ final class KbdApp {
         return variant == VARIANT_TRAD ? host.toTraditional(text) : text;
     }
 
-    private void openCommands() {
-        escape = false;
-        escapeBuffer = "\\";
-        commands = true;
-        preedit = "";
-        candidates = new ArrayList<>(KbdData.commandLabels());
-        expanded = false;
-        candidateRow = 0;
-        if (composingShown) {
-            host.finishComposing();
-            composingShown = false;
-        }
-        clearTempMods();
-        host.invalidate();
-    }
-
-    private void closeCommands() {
-        commands = false;
-        expanded = false;
-        candidateRow = 0;
-        refreshFromEngine();
-        host.invalidate();
-    }
-
-    /** 命令面板第 index 项：执行其 action 后收起面板。 */
-    private void runCommand(int index) {
-        if (index >= 0 && index < KbdData.COMMANDS.size()) {
-            runAction(KbdData.COMMANDS.get(index).action);
-        }
-        closeCommands();
-    }
-
     private void runAction(String action) {
         switch (action) {
-            case "commands":
-                openCommands();
-                break;
             case "simple":
                 variant = VARIANT_SIMPLE;
                 refreshFromEngine();
@@ -326,6 +354,17 @@ final class KbdApp {
         }
     }
 
+    /** 非候选上屏：同时计入引擎上文（候选由 engine.select 自行记账）。 */
+    private void commit(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        if (engine != null && engine.isReady()) {
+            engine.recordText(text);
+        }
+        host.commitText(text);
+    }
+
     // ---------- 修饰键 ----------
 
     void toggleModifier(String name) {
@@ -373,16 +412,6 @@ final class KbdApp {
         if (def == null) {
             return;
         }
-        if (commands) {
-            if (def.kind == KbdData.Kind.ENTER) {
-                enter();
-                return;
-            }
-            closeCommands();
-            if (def.kind == KbdData.Kind.BACKSPACE || def.kind == KbdData.Kind.SPACE) {
-                return;
-            }
-        }
         switch (def.kind) {
             case MODIFIER:
                 toggleModifier(def.mod);
@@ -418,7 +447,7 @@ final class KbdApp {
             clearTempMods();
             return;
         }
-        host.commitText(" ");
+        commit(" ");
         clearTempMods();
         host.invalidate();
     }
@@ -438,6 +467,9 @@ final class KbdApp {
             engine.backspace();
             refreshFromEngine();
         } else {
+            if (engine != null && engine.isReady()) {
+                engine.recordBackspace();
+            }
             host.sendKey(KEY_DEL, metaState());
         }
         clearTempMods();
@@ -446,15 +478,6 @@ final class KbdApp {
 
     private void enter() {
         if (escape) {
-            return;
-        }
-        if (commands) {
-            expanded = !expanded;
-            if (!expanded) {
-                candidateRow = 0;
-            }
-            clearTempMods();
-            host.invalidate();
             return;
         }
         if (composing()) {
@@ -466,7 +489,7 @@ final class KbdApp {
             host.invalidate();
             return;
         }
-        host.commitText("\n");
+        commit("\n");
         clearTempMods();
         host.invalidate();
     }
@@ -631,7 +654,7 @@ final class KbdApp {
                 return;
             }
             if (shift) {
-                host.commitText(id.toUpperCase());
+                commit(id.toUpperCase());
                 clearTempMods();
                 host.invalidate();
                 return;
@@ -674,7 +697,7 @@ final class KbdApp {
             return;
         }
         if (symbols) {
-            host.commitText(label);
+            commit(label);
             host.invalidate();
             return;
         }
@@ -694,11 +717,11 @@ final class KbdApp {
             }
         }
         if ("Tab".equals(label)) {
-            host.commitText("\t");
+            commit("\t");
         } else if ("Esc".equals(label)) {
             host.sendKey(KEY_ESCAPE, 0);
         } else {
-            host.commitText(label);
+            commit(label);
             cycleQuote(label);
         }
         clearTempMods();
@@ -714,7 +737,7 @@ final class KbdApp {
             appendEscape(symbol);
             return;
         }
-        host.commitText(symbol);
+        commit(symbol);
         clearTempMods();
         host.invalidate();
     }
@@ -743,7 +766,6 @@ final class KbdApp {
             return;
         }
         symbols = true;
-        symbolRow = 0;
         expanded = false;
         clearTempMods();
         host.invalidate();
@@ -756,6 +778,9 @@ final class KbdApp {
     }
 
     int symbolCols() {
+        if (layout != null) {
+            return layout.symbolCols;
+        }
         return landscape ? 16 : 10;
     }
 
@@ -773,9 +798,6 @@ final class KbdApp {
     // ---------- 长按 ----------
 
     void longKey(String id) {
-        if (commands) {
-            closeCommands();
-        }
         KbdData.Key def = KbdData.KEYS.get(id);
         if (def == null) {
             return;
@@ -874,13 +896,62 @@ final class KbdApp {
         String text;
         KbdData.EscapeCommand command;
         String value;
+        Integer bottomSafe;
+        boolean bottomAuto;
+        String scheme;
+        String action;
     }
 
     Preview escapePreview() {
         Preview out = new Preview();
         String body = escapeBuffer.length() > 1 ? escapeBuffer.substring(1) : "";
+        body = Normalizer.normalize(body, Normalizer.Form.NFKC);
         if (body.isEmpty()) {
-            out.text = "n 换行   t 制表   u Unicode   s 设置   j 简繁";
+            out.text = "n 换行   t 制表   u Unicode   sk=dark|light|auto   st=s|t   sb=数字   zh=方案";
+            return out;
+        }
+        if ("sb=auto".equals(body)) {
+            out.valid = true;
+            out.bottomAuto = true;
+            out.text = "→ 底部安全区 自动";
+            return out;
+        }
+        Matcher sb = SB_NUM.matcher(body);
+        if (sb.matches()) {
+            int value = Integer.parseInt(sb.group(1));
+            out.valid = true;
+            out.bottomSafe = Math.max(0, Math.min(200, value));
+            out.text = "→ 底部安全区 " + out.bottomSafe;
+            return out;
+        }
+        Matcher zh = ZH_SCHEME.matcher(body);
+        if (zh.matches()) {
+            String code = zh.group(1).toLowerCase(java.util.Locale.ROOT);
+            String label = KbdData.SCHEMES.get(code);
+            if (label != null) {
+                out.valid = true;
+                out.scheme = code;
+                out.text = "→ 输入方案 " + label;
+            } else {
+                out.text = "→ 未知方案 " + code;
+            }
+            return out;
+        }
+        Matcher sk = SK_MODE.matcher(body);
+        if (sk.matches()) {
+            String mode = sk.group(1);
+            out.valid = true;
+            out.action = mode;
+            out.text = "→ 皮肤 " + ("dark".equals(mode) ? "暗色"
+                    : "light".equals(mode) ? "亮色" : "自动");
+            return out;
+        }
+        Matcher st = ST_MODE.matcher(body);
+        if (st.matches()) {
+            boolean trad = "t".equals(st.group(1));
+            out.valid = true;
+            out.action = trad ? "trad" : "simple";
+            out.text = "→ " + (trad ? "繁体" : "简体");
             return out;
         }
         KbdData.EscapeCommand cmd = KbdData.ESCAPE_COMMANDS.get(body);
@@ -907,6 +978,10 @@ final class KbdApp {
         return out;
     }
 
+    private static final Pattern SB_NUM = Pattern.compile("^sb=([0-9]{1,3})$");
+    private static final Pattern ZH_SCHEME = Pattern.compile("^zh=([A-Za-z]+)$");
+    private static final Pattern SK_MODE = Pattern.compile("^sk=(dark|light|auto)$");
+    private static final Pattern ST_MODE = Pattern.compile("^st=([st])$");
     private static final Pattern UNICODE_4 = Pattern.compile("^u([0-9a-fA-F]{4})$");
     private static final Pattern UNICODE_BRACE = Pattern.compile("^u\\{([0-9a-fA-F]{1,6})\\}$");
 
@@ -928,16 +1003,32 @@ final class KbdApp {
         if (!info.valid) {
             return;
         }
+        if (info.bottomAuto) {
+            setBottomSafeAuto();
+            return;
+        }
+        if (info.bottomSafe != null) {
+            setBottomSafe(info.bottomSafe);
+            return;
+        }
+        if (info.scheme != null) {
+            setScheme(info.scheme);
+            return;
+        }
+        if (info.action != null) {
+            runAction(info.action);
+            return;
+        }
         if (info.command != null) {
             if ("text".equals(info.command.type)) {
-                host.commitText(outText(info.command.value));
+                commit(outText(info.command.value));
             } else if ("action".equals(info.command.type)) {
                 runAction(info.command.value);
             }
             return;
         }
         if (info.value != null) {
-            host.commitText(info.value);
+            commit(info.value);
         }
     }
 
@@ -946,6 +1037,7 @@ final class KbdApp {
     void scrollSymbols(int rows) {
         int n = symbolRowCount();
         symbolRow = ((symbolRow + rows) % n + n) % n;
+        host.onSymbolRowChanged(symbolRow);
         host.invalidate();
     }
 
@@ -956,12 +1048,15 @@ final class KbdApp {
 
     /** 横屏：中列按 6 键一行流式装箱（与竖屏同一规则）；竖屏：10 键一行。 */
     private int scrollCandidateMax() {
-        if (landscape) {
-            return KbdLayout.candPanelScrollMax(
-                    KbdLayout.candidateRows(candidates, KbdLayout.LAND_ROW_KEYS),
-                    KbdLayout.CAND_PANEL_H);
+        if (layout == null) {
+            return 0;
         }
-        return KbdLayout.candScrollMax(KbdLayout.candidateRows(candidates));
+        if (landscape) {
+            return layout.candPanelScrollMax(
+                    layout.candidateRows(candidates, layout.landRowKeys),
+                    layout.kbH);
+        }
+        return layout.candScrollMax(layout.candidateRows(candidates));
     }
 
     void setLandscape(boolean value) {
@@ -970,6 +1065,7 @@ final class KbdApp {
         }
         landscape = value;
         candidateRow = 0;
-        symbolRow = 0;
+        // 符号行跨方向保留，行数不足时收敛到末行
+        symbolRow = Math.min(symbolRow, symbolRowCount() - 1);
     }
 }

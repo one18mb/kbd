@@ -1,5 +1,6 @@
 // 宿主机联调程序：验证 libime 的 input → candidates → select 全链路（小鹤双拼）。
 // 用法：sh scripts/host-selftest.sh
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -31,6 +32,31 @@ int main(int argc, char **argv) {
     if (argc < 3) {
         std::cout << "usage: pipeline <sc.dict> <sc.lm>\n";
         return 1;
+    }
+
+    {
+        struct Scheme {
+            const char *code;
+            libime::ShuangpinBuiltinProfile profile;
+        };
+        const Scheme schemes[] = {
+                {"xiaohe", libime::ShuangpinBuiltinProfile::Xiaohe},
+                {"ziranma", libime::ShuangpinBuiltinProfile::Ziranma},
+                {"ms", libime::ShuangpinBuiltinProfile::MS},
+                {"ziguang", libime::ShuangpinBuiltinProfile::Ziguang},
+                {"abc", libime::ShuangpinBuiltinProfile::ABC},
+                {"zhongwenzhixing", libime::ShuangpinBuiltinProfile::Zhongwenzhixing},
+                {"pinyinjiajia", libime::ShuangpinBuiltinProfile::PinyinJiajia},
+                {"gb", libime::ShuangpinBuiltinProfile::GB},
+        };
+        std::cout << "内置双拼 8 种：\n";
+        for (const auto &s : schemes) {
+            libime::ShuangpinProfile p(s.profile);
+            std::cout << "  " << s.code
+                      << " valid=" << p.validInput().size()
+                      << " table=" << p.table().size() << "\n";
+        }
+        std::cout << "  quanpin（全拼，无 profile）\n\n";
     }
 
     auto dict = std::make_unique<libime::PinyinDictionary>();
@@ -90,6 +116,58 @@ int main(int argc, char **argv) {
         }
     } else {
         std::cout << "  未找到单字候选\n";
+    }
+
+    // B：上文影响候选（全拼，便于构造案例）；A：learn + 用户历史存取
+    auto dumpCands = [](const char *tag, libime::PinyinContext &c) {
+        std::cout << tag;
+        size_t n = 0;
+        for (const auto &item : c.candidates()) {
+            if (n++ >= 5) {
+                break;
+            }
+            std::cout << " " << item.toString();
+        }
+        std::cout << "\n";
+    };
+
+    auto *userModel = ime.model();
+
+    libime::PinyinContext plain(&ime);
+    plain.setUseShuangpin(false);
+    for (char ch : std::string("shijie")) {
+        plain.type(std::string(1, ch));
+    }
+    dumpCands("无上文 shijie:", plain);
+    plain.clear();
+
+    libime::PinyinContext hist(&ime);
+    hist.setUseShuangpin(false);
+    for (char ch : std::string("nihao")) {
+        hist.type(std::string(1, ch));
+    }
+    if (!hist.candidates().empty()) {
+        hist.select(0);
+        hist.learn();   // A：上文 + 你好 进入 HistoryBigram
+        auto words = hist.selectedWordsWithPinyin();
+        std::cout << "上文词：" << words.size() << "，首词="
+                  << (words.empty() ? "" : words.front().first) << "\n";
+        hist.clear();
+        hist.setContextWordsWithPinyin(words);   // B：喂给解码器
+    }
+    for (char ch : std::string("shijie")) {
+        hist.type(std::string(1, ch));
+    }
+    dumpCands("有上文(你好) shijie:", hist);
+
+    // 用户历史落盘/读回（A）
+    std::ofstream out("history-test.bigram");
+    userModel->save(out);
+    out.close();
+    std::ifstream in("history-test.bigram");
+    if (in) {
+        userModel->load(in);
+        std::cout << "用户历史已保存并读回\n";
     }
 
     return 0;

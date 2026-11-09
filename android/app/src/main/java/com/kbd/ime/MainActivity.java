@@ -1,81 +1,96 @@
 package com.kbd.ime;
 
 import android.app.Activity;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
-import java.io.File;
-
 /**
- * 开发用宿主：显示引擎自检，并跑一次 输入→候选→选词 演示。
- * 词典与模型随 APK 打包（assets/engine），首次启动解压到 filesDir/engine。
+ * KBD 入口：显示完整帮助（输入方案、底部安全区、主题/简繁、转义、手势）。
+ * 引擎自检放在页尾，方便确认 libime 内置双拼数量。
  */
 public final class MainActivity extends Activity {
-
-    private TextView status;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(48, 48, 48, 48);
+        root.setPadding(48, 40, 48, 48);
+        scroll.addView(root);
 
         TextView title = new TextView(this);
-        title.setText("KBD 输入法 · 引擎自检");
-        title.setTextSize(24);
+        title.setText("KBD 输入法");
+        title.setTextSize(26);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
-        status = new TextView(this);
-        status.setTextSize(16);
-        status.setGravity(Gravity.START);
-        status.setPadding(0, 24, 0, 0);
-        root.addView(status);
+        String scheme = getSharedPreferences("kbd", MODE_PRIVATE)
+                .getString("scheme", "quanpin");
+        TextView current = new TextView(this);
+        current.setText("当前方案：" + KbdData.schemeLabel(scheme));
+        current.setTextSize(16);
+        current.setPadding(0, 8, 0, 20);
+        root.addView(current);
 
-        setContentView(root);
+        TextView help = new TextView(this);
+        help.setText(helpText());
+        help.setTextSize(15);
+        help.setTypeface(Typeface.MONOSPACE);
+        help.setLineSpacing(6f, 1f);
+        help.setTextIsSelectable(true);
+        help.setGravity(Gravity.START);
+        root.addView(help);
 
-        StringBuilder report = new StringBuilder();
+        TextView engine = new TextView(this);
+        engine.setTextSize(12);
+        engine.setTypeface(Typeface.MONOSPACE);
+        engine.setPadding(0, 28, 0, 0);
         try {
-            report.append(LibimeEngine.selfTest()).append("\n\n");
+            engine.setText(LibimeEngine.selfTest());
         } catch (Throwable t) {
-            report.append("引擎加载失败：").append(t).append('\n');
-            status.setText(report);
-            return;
+            engine.setText("引擎：未加载\n" + t);
         }
-        status.setText(report);
+        root.addView(engine);
 
-        new Thread(() -> {
-            String result = runPipelineDemo();
-            runOnUiThread(() -> status.setText(report.append(result)));
-        }).start();
+        setContentView(scroll);
     }
 
-    private String runPipelineDemo() {
+    private static String helpText() {
         StringBuilder out = new StringBuilder();
-        try {
-            File dir = EngineData.ensure(this);
-            LibimeEngine engine = new LibimeEngine();
-            engine.load(dir.getAbsolutePath());
-            out.append("引擎已加载：").append(dir.getAbsolutePath()).append('\n');
-
-            for (char c : "nihc".toCharArray()) {
-                engine.input(c);
-            }
-            EngineBridge.State state = engine.state(18);
-            out.append("输入 nihc → preedit=[").append(state.preedit).append("]\n");
-            if (state.candidates.length > 0) {
-                out.append("首选：").append(state.candidates[0]).append('\n');
-                String committed = engine.select(0);
-                out.append("选0上屏：[").append(committed).append("]\n");
-            } else {
-                out.append("没有候选\n");
-            }
-            engine.saveUserDict();
-        } catch (Throwable t) {
-            out.append("联调失败：").append(t).append('\n');
+        out.append("输入方案（\\zh=）\n");
+        for (String code : KbdData.SCHEMES.keySet()) {
+            out.append(String.format(java.util.Locale.ROOT, "  %-22s %s\n",
+                    "\\zh=" + code, KbdData.SCHEMES.get(code)));
         }
+        out.append('\n');
+        out.append("底部安全区\n");
+        out.append("  \\sb=32                固定 32px\n");
+        out.append("  \\sb=auto              跟随系统\n");
+        out.append('\n');
+        out.append("皮肤与简繁\n");
+        out.append("  \\sk=dark             暗色\n");
+        out.append("  \\sk=light            亮色\n");
+        out.append("  \\sk=auto             跟随系统\n");
+        out.append("  \\st=s                简体\n");
+        out.append("  \\st=t                繁体\n");
+        out.append('\n');
+        out.append("转义\n");
+        out.append("  长按空格进入 \\；确认执行，删除退格，Esc 退出\n");
+        out.append("  \\n 换行    \\t 制表    \\u4f60 Unicode    \\\\ 反斜杠\n");
+        out.append('\n');
+        out.append("本页：在系统桌面点击 KBD 应用打开。\n");
+        out.append('\n');
+        out.append("手势\n");
+        out.append("  上滑/下滑：键上副字符\n");
+        out.append("  长按修饰键：锁定\n");
+        out.append("  长按删除：连发\n");
+        out.append("  符号层上下滑：翻页\n");
         return out.toString();
     }
 }

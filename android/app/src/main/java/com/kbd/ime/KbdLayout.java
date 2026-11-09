@@ -4,155 +4,385 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 几何层，对应 webdemo/js/layout.js 的 portrait / landscape。
- * 只做数值计算，不持有状态、不绘制。
+ * 几何层，对应 webdemo/js/layout.js。
+ * 输入窗口 (W,H) 与底部安全区 b，模式由 W/H 比例计算，不读系统方向。
  */
 final class KbdLayout {
 
-    static final int S = 32;
-    static final int G = 4;
-    static final int KEY_H = 3 * S + 2 * G;   // 104
-    static final int MAIN_H = 3 * KEY_H + 2 * G;  // 320
-    static final int K_BASE = 68;
-    static final int BASE_W = 720;            // 竖屏设计宽
-    static final int LANDSCAPE_W = 1604;      // 横屏设计宽
+    /** 屏幕 W/H 阈值：> R 横屏，≤ R 竖屏。 */
+    static final float R = 0.75f;
+
+    static final int CAND_TEXT_MARGIN = 8;
+    static final int CAND_MIN_KEYS = 2;
+    static final int PORTRAIT_ROW_KEYS = 10;
 
     final int width;
-    final float scale;
+    final int height;
+    final int b;
     final boolean landscape;
 
-    final int side;
-    final int k;
-    final int doubleW;
-    final int barH;      // 仅竖屏
-    final int barTop;    // 仅竖屏
-    final int mainTop;   // 仅竖屏
-    final int mainH;     // 仅竖屏
-    final int funcTop;   // 仅竖屏
-    final int keyH;
-    final int kbH;
-    final int totalH;
+    int n;
+    int S;          // 字体/行高
+    int t;
+    int k;          // 键宽（偶数）
+    int g;          // 普通缝
+    int c;          // 中缝
+    int e;          // c-g
+    int m;          // 左右外边距（单侧）
+    int keyH;
+    int kbW;
+    int kbLeft;
+    int kbH;
+    int totalH;
 
-    final int candSide;  // 仅竖屏
+    // 竖屏
+    int side;
+    int doubleW;
+    int spaceW;
+    int barH;
+    int barTop;
+    int mainTop;
+    int mainH;
+    int funcTop;
+    int candCellW;
+    int candGap;
+    int candSide;
+    int candH;
+    int expTop;
+    int expH;
+    int expRows;
+    int expCols;
+    int expCellW;
+    int expGap;
+    int expSide;
+    int expRowH;
+    int[] symbolRows;
+    int symbolK;
+    int symbolGap;
+    int symbolSide;
+    int symbolCols;
+    int symbolSlots;
 
-    final int expGap;
-    final int expRowH;
-    final int expTop;    // 仅竖屏
-    final int expH;      // 仅竖屏
+    // 横屏
+    int outerW;
+    int letterX;
+    int letterW;
+    int midX;
+    int midW;
+    int rightX;
+    int outerRightX;
+    int symbolX;
+    int symbolCellW;
+    int symbolW;
+    int[] rowY;
+    int p;
+    int landRowKeys;
+    int landPanelH;
+    int panelX;
+    int panelW;
+    int panelH;
+    int panelCellW;
+    int panelCols;
+    int panelRows;
+    int panelCellH;
+    int[] panelRowY;
+    int spaceX;
+    int spaceY;
+    int spaceH;
+    int expX;
+    int expY;
+    int expW;
+    int expCellH;
+    int[] expRowY;
 
-    // 横屏三行分栏
-    final int outerW;
-    final int letterX;
-    final int letterW;
-    final int midX;
-    final int midW;
-    final int rightX;
-    final int outerRightX;
-    final int symbolX;
-    final int symbolCols;
-    final int[] rowY;
+    // 拼音浮层
+    int preeditH;
+    int preeditPad;
+    int preeditGap;
+    int preeditFont;
+    int preeditLeft;
+    int preeditWidth;
 
-    // 拼音浮层（webdemo .floating-preedit）：键盘外、文字宽、32px 高，
-    // 与键盘上沿隔 4px，用同色补满这 4px
-    final int preeditH;
-    final int preeditPad;
-    final int preeditGap;
-    final int preeditFont;
-    final int preeditLeft;
-    final int preeditWidth;
+    // 诊断
+    boolean tBeyond;
+    boolean gCappedByHeight;
+    boolean overflow;
+    double kbRatio;
 
-    KbdLayout(int width, boolean landscape) {
-        this.width = width;
-        this.landscape = landscape;
-        this.scale = width / (float) (landscape ? LANDSCAPE_W : BASE_W);
+    KbdLayout(int width, int height, int b) {
+        this(width, height, b, null);
+    }
 
-        k = s(K_BASE);
-        keyH = s(KEY_H);
-        expGap = s(G);
-        expRowH = s(S);
+    /** forceLandscape 仅供宿主预览/测试；正式运行传 null。 */
+    KbdLayout(int width, int height, int b, Boolean forceLandscape) {
+        this.width = Math.max(1, width);
+        this.height = Math.max(1, height);
+        this.b = Math.max(0, b);
 
-        if (landscape) {
-            side = s(84);
-            doubleW = 0;
-            barH = 0;
-            barTop = 0;
-            mainTop = 0;
-            mainH = 0;
-            funcTop = 0;
-            kbH = s(320);
-            totalH = kbH;
-            candSide = 0;
-            expTop = 0;
-            expH = 0;
-            outerW = s(140);
-            letterX = side + s(144);
-            letterW = s(356);
-            midX = side + s(504);
-            midW = s(428);
-            rightX = side + s(936);
-            outerRightX = side + s(1296);
-            symbolX = letterX;
-            symbolCols = 16;
-            rowY = new int[]{0, s(KEY_H + G), s(2 * (KEY_H + G))};
-            preeditLeft = midX;
-            preeditWidth = midW;
+        boolean pOK = this.width >= 160 && this.height >= 208 + this.b;
+        boolean lOK = this.width >= 256 && this.height >= 144;
+        if (forceLandscape != null) {
+            landscape = forceLandscape;
+        } else if (!pOK && !lOK) {
+            landscape = this.width >= this.height;
+        } else if (pOK && !lOK) {
+            landscape = false;
+        } else if (lOK && !pOK) {
+            landscape = true;
         } else {
-            side = s(2);
-            doubleW = 2 * k + s(G);
-            barH = s(S);
-            barTop = 0;
-            mainTop = barH + s(G);                   // 36
-            mainH = s(MAIN_H);                       // 320
-            funcTop = mainTop + mainH + s(G);        // 360
-            kbH = s(496);
-            totalH = kbH;
-            candSide = s(2);
-            expTop = mainTop;
-            expH = mainH;
-            outerW = 0;
-            letterX = 0;
-            letterW = 0;
-            midX = 0;
-            midW = 0;
-            rightX = 0;
-            outerRightX = 0;
-            symbolX = 0;
-            symbolCols = 10;
-            rowY = new int[]{0, 0, 0};
-            preeditLeft = 0;
-            preeditWidth = width;
+            landscape = this.width / (double) this.height > R;
         }
 
-        preeditH = s(S);
-        preeditPad = s(2);
-        preeditGap = s(G);
-        preeditFont = s(S);
+        if (landscape) {
+            solveLandscape(this.width, this.height);
+        } else {
+            solvePortrait(this.width, this.height, this.b);
+        }
+        totalH = kbH;
+        kbRatio = kbH > 0 ? kbW / (double) kbH : 0;
     }
 
-    int s(int designPx) {
-        return Math.round(designPx * scale);
+    // ---------- 级 ----------
+
+    static int tStart(int n) {
+        return n == 1 ? 0 : 17 * n - 25;
     }
+
+    static int tCap(int n) {
+        return 17 * n - 8;
+    }
+
+    static int gStart(int n) {
+        return n == 1 ? 0 : 2 * (n - 1);
+    }
+
+    static int gCap(int n) {
+        return 2 * n;
+    }
+
+    private int portraitMaxN(int width, int height, int b) {
+        int n = Math.max(1, (width + 359) / 360);
+        while (n > 1) {
+            if (208 * n + 12 * gStart(n) + b <= height) {
+                break;
+            }
+            n--;
+        }
+        return n;
+    }
+
+    private int landscapeMaxN(int width, int height) {
+        int n = Math.max(1, (Math.min(width, height) + 359) / 360);
+        while (n > 1) {
+            int kStart = 16 + 2 * tStart(n);
+            if (width >= 16 * kStart && 144 * n + 8 * gStart(n) <= height) {
+                break;
+            }
+            n--;
+        }
+        return n;
+    }
+
+    // ---------- 竖屏 ----------
+
+    private void solvePortrait(int W, int H, int b) {
+        n = portraitMaxN(W, H, b);
+        S = 16 * n;
+        int gs = gStart(n);
+        int gc = gCap(n);
+        int gHeight = (H - b - 208 * n) / 12;
+        int gMax = Math.min(gc, Math.max(gs, gHeight));
+        int ts = tStart(n);
+        int tEnd = tCap(n);
+
+        g = gs;
+        for (int gg = gMax; gg >= gs; gg--) {
+            if (160 + 9 * gg + 20 * ts <= W) {
+                g = gg;
+                break;
+            }
+        }
+        t = ts;
+        int minBase = 160 + 9 * g + 20 * ts;
+        if (W >= minBase) {
+            t = ts + (W - minBase) / 20;
+        }
+        int base = 160 + 9 * g + 20 * t;
+        e = (W - base) & 1;
+        m = Math.max(0, (W - base - e) / 2);
+        c = g + e;
+        k = 16 + 2 * t;
+        tBeyond = t > tEnd;
+        gCappedByHeight = gMax < gc;
+        overflow = 208 * n + 12 * g + b > H || W < 160;
+
+        side = m;
+        keyH = 3 * S + 2 * g;
+        mainH = 3 * keyH + 2 * g;
+        barH = S;
+        barTop = 0;
+        mainTop = barH + g;
+        funcTop = mainTop + mainH + g;
+        kbW = W;
+        kbLeft = 0;
+        kbH = funcTop + keyH + b;
+        doubleW = 2 * k + g;
+        spaceW = 2 * k + c;
+
+        candCellW = 2 * k + g;
+        candGap = g;
+        candSide = m;
+        candH = S;
+        expTop = mainTop;
+        expH = mainH;
+        expRows = Math.max(1, (mainH + g) / (S + g));
+        expCols = Math.max(1, (W - 2 * m + g) / (candCellW + g));
+        expCellW = candCellW;
+        expGap = g;
+        expSide = m;
+        expRowH = S;
+
+        symbolCols = PORTRAIT_ROW_KEYS;
+        symbolSlots = symbolCols * 3;
+        symbolK = k;
+        symbolGap = g;
+        symbolSide = m;
+        symbolRows = new int[]{
+                mainTop,
+                mainTop + keyH + g,
+                mainTop + 2 * (keyH + g)
+        };
+
+        preeditH = S;
+        preeditPad = Math.max(1, Math.round(S / 16f));
+        preeditGap = g;
+        preeditFont = S;
+        preeditLeft = 0;
+        preeditWidth = W;
+    }
+
+    // ---------- 横屏 ----------
+
+    private void solveLandscape(int W, int H) {
+        n = landscapeMaxN(W, H);
+        S = 16 * n;
+        int gs = gStart(n);
+        int gc = gCap(n);
+        int gHeight = (H - 144 * n) / 8;
+        int gMax = Math.min(gc, Math.max(gs, gHeight));
+        int ts = tStart(n);
+        int tEnd = tCap(n);
+
+        g = gs;
+        for (int gg = gMax; gg >= gs; gg--) {
+            if (16 * (16 + 2 * ts) + 15 * gg <= W) {
+                g = gg;
+                break;
+            }
+        }
+
+        k = 16 + 2 * ts;
+        int maxK = (W - 15 * g) / 16;
+        t = ts;
+        if (maxK > k) {
+            t = ts + (maxK - k) / 2;
+        }
+        if (t > tEnd) {
+            t = tEnd;
+        }
+        k = 16 + 2 * t;
+
+        p = 2;
+        for (int pp = 6; pp >= 2; pp--) {
+            if ((14 + pp) * k + (pp + 13) * g <= W) {
+                p = pp;
+                break;
+            }
+        }
+        int base = (14 + p) * k + (p + 13) * g;
+        e = (W - base) & 1;
+        m = Math.max(0, (W - base - e) / 2);
+        c = g + e;
+        tBeyond = t > tEnd;
+        gCappedByHeight = gMax < gc;
+        overflow = 144 * n + 8 * g > H || W < 256;
+
+        side = m;
+        keyH = 3 * S + 2 * g;
+        rowY = new int[]{0, keyH + g, 2 * (keyH + g)};
+        kbH = 3 * keyH + 2 * g;
+        kbW = W - 2 * m;
+        kbLeft = m;
+        outerW = 2 * k + g;
+        doubleW = outerW;
+        letterW = 5 * k + 4 * g;
+        midW = p * k + (p - 1) * g + e;
+        // 对外坐标一律是视图绝对值，包含左右安全区 m。
+        int lx = outerW + g;
+        int mx = lx + letterW + g;
+        int rx = mx + midW + g;
+        int orx = rx + letterW + g;
+        letterX = kbLeft + lx;
+        midX = kbLeft + mx;
+        rightX = kbLeft + rx;
+        outerRightX = kbLeft + orx;
+        spaceW = midW;
+
+        landRowKeys = p;
+        landPanelH = 2 * keyH + g;
+        panelX = midX;
+        panelW = midW;
+        panelH = landPanelH;
+        panelCellW = Math.max(1, (midW - g) / 2);
+        panelCols = 2;
+        panelRows = Math.max(1, (panelH + g) / (S + g));
+        panelCellH = S;
+        panelRowY = new int[panelRows];
+        for (int i = 0; i < panelRows; i++) {
+            panelRowY[i] = i * (S + g);
+        }
+
+        expX = midX;
+        expY = 0;
+        expW = midW;
+        expH = kbH;
+        expCols = 2;
+        expCellW = panelCellW;
+        expCellH = S;
+        expRows = Math.max(1, (kbH + g) / (S + g));
+        expRowY = new int[expRows];
+        for (int i = 0; i < expRows; i++) {
+            expRowY[i] = i * (S + g);
+        }
+
+        spaceX = midX;
+        spaceY = rowY[2];
+        spaceH = keyH;
+
+        symbolX = letterX;
+        symbolCellW = k;
+        symbolCols = Math.max(1, (kbW - 2 * outerW) / (k + g));
+        symbolW = symbolCols * k + (symbolCols - 1) * g;
+        symbolSlots = symbolCols * 3;
+
+        preeditH = S;
+        preeditPad = Math.max(1, Math.round(S / 16f));
+        preeditGap = g;
+        preeditFont = S;
+        preeditLeft = midX;
+        preeditWidth = midW;
+    }
+
+    // ---------- 竖屏矩形 ----------
 
     float[] keyRect(int row, int col) {
-        float x = side + col * (k + s(G));
-        float y = mainTop + row * (keyH + s(G));
+        float x = side + col * (k + g) + (col >= 5 ? (c - g) : 0);
+        float y = mainTop + row * (keyH + g);
         return new float[]{x, y, x + k, y + keyH};
     }
 
-    /** 符号格与字母键同网格。 */
     float[] symbolRect(int row, int col) {
         return keyRect(row, col);
-    }
-
-    /** 功能行第 index 个键的 x 起点。 */
-    float funcX(int index) {
-        float x = side;
-        String[] ids = KbdData.PORTRAIT_ROWS[3];
-        for (int i = 0; i < index && i < ids.length; i++) {
-            KbdData.Key key = KbdData.KEYS.get(ids[i]);
-            x += (key != null && key.wide ? doubleW : k) + s(G);
-        }
-        return x;
     }
 
     float funcWidth(int index) {
@@ -160,8 +390,19 @@ final class KbdLayout {
         if (index < 0 || index >= ids.length) {
             return 0;
         }
+        if ("space".equals(ids[index])) {
+            return spaceW;
+        }
         KbdData.Key key = KbdData.KEYS.get(ids[index]);
         return key != null && key.wide ? doubleW : k;
+    }
+
+    float funcX(int index) {
+        float x = side;
+        for (int i = 0; i < index; i++) {
+            x += funcWidth(i) + g;
+        }
+        return x;
     }
 
     float[] funcRect(int index) {
@@ -169,7 +410,7 @@ final class KbdLayout {
         return new float[]{x, funcTop, x + funcWidth(index), funcTop + keyH};
     }
 
-    // ---------- 横屏：三行分栏 ----------
+    // ---------- 横屏矩形 ----------
 
     private float[] landRect(float x, float w, int row) {
         float y = rowY[row];
@@ -177,7 +418,7 @@ final class KbdLayout {
     }
 
     float[] landOuterLeftRect(int row) {
-        return landRect(side, outerW, row);
+        return landRect(kbLeft, outerW, row);
     }
 
     float[] landOuterRightRect(int row) {
@@ -185,51 +426,45 @@ final class KbdLayout {
     }
 
     float[] landLeftRect(int row, int col) {
-        return landRect(letterX + col * (k + s(G)), k, row);
+        return landRect(letterX + col * (k + g), k, row);
     }
 
     float[] landRightRect(int row, int col) {
-        return landRect(rightX + col * (k + s(G)), k, row);
+        return landRect(rightX + col * (k + g), k, row);
     }
 
     float[] landSymbolRect(int row, int col) {
-        return landRect(symbolX + col * (k + s(G)), k, row);
+        return landRect(symbolX + col * (k + g), k, row);
     }
 
     float[] landSpaceRect() {
-        float y = rowY[2];
-        return new float[]{midX, y, midX + midW, y + keyH};
+        return landRect(spaceX, spaceW, 2);
     }
 
-    /** 命中：点在矩形内（左闭右开）。 */
     static boolean hit(float[] r, float x, float y) {
         return x >= r[0] && x < r[2] && y >= r[1] && y < r[3];
     }
 
-    // ---------- 候选格：最小 2 键宽的偶数倍，超长词跨行（竖/横共用） ----------
+    // ---------- 候选 ----------
 
-    static final int CAND_ROW_KEYS = 10;    // 竖屏一整行 = 10 键位
-    static final int LAND_ROW_KEYS = 6;     // 横屏中列 = 6 键位（428）
-    static final int CAND_MIN_KEYS = 2;
-    static final int CAND_TEXT_MARGIN = 8;
-    static final int CAND_PANEL_H = MAIN_H;   // 展开面板高 320
-    static final int LAND_PANEL_H = 212;      // 横屏未展开面板高（6 × 32 + 5 × 4）
-
-    /** 候选格宽（base px）：占 keys 个键位。 */
-    static int candCellBase(int keys) {
-        return keys * K_BASE + (keys - 1) * G;
+    int candCellBase(int keys) {
+        return keys * k + (keys - 1) * g;
     }
 
-    /** Unifont 32px 的确定性字宽：全角 32、半角 16（与自检“汉字宽 = 2 × ASCII”一致）。 */
-    static int textBaseWidth(String text) {
+    /** Unifont 确定性字宽：全角 size，半角 size/2。 */
+    static int textWidth(String text, int size) {
         int width = 0;
         for (int i = 0; i < text.length(); i++) {
-            width += fullWidth(text.charAt(i)) ? S : S / 2;
+            width += fullWidth(text.charAt(i)) ? size : size / 2;
         }
         return width;
     }
 
-    private static boolean fullWidth(char c) {
+    int textWidth(String text) {
+        return textWidth(text, S);
+    }
+
+    static boolean fullWidth(char c) {
         return c >= 0x1100 && (c <= 0x115F || c == 0x2329 || c == 0x232A
                 || (c >= 0x2E80 && c <= 0xA4CF && c != 0x303F)
                 || (c >= 0xAC00 && c <= 0xD7A3)
@@ -239,13 +474,12 @@ final class KbdLayout {
                 || (c >= 0xFFE0 && c <= 0xFFE6));
     }
 
-    static int candKeys(String text) {
-        return candKeys(text, CAND_ROW_KEYS);
+    int candKeys(String text) {
+        return candKeys(text, PORTRAIT_ROW_KEYS);
     }
 
-    /** 候选格最小偶数键宽：不超过一行的最大键宽；超出则保持最大键宽并折行。 */
-    static int candKeys(String text, int rowKeys) {
-        int width = textBaseWidth(text) + CAND_TEXT_MARGIN;
+    int candKeys(String text, int rowKeys) {
+        int width = textWidth(text) + CAND_TEXT_MARGIN;
         for (int keys = CAND_MIN_KEYS; keys <= rowKeys; keys += 2) {
             if (width <= candCellBase(keys)) {
                 return keys;
@@ -254,28 +488,27 @@ final class KbdLayout {
         return rowKeys;
     }
 
-    static String[] candLines(String text) {
-        return candLines(text, CAND_ROW_KEYS);
+    String[] candLines(String text) {
+        return candLines(text, PORTRAIT_ROW_KEYS);
     }
 
-    /** 超过一行宽时按行宽折行；否则只有一行。 */
-    static String[] candLines(String text, int rowKeys) {
+    String[] candLines(String text, int rowKeys) {
         int max = candCellBase(rowKeys) - CAND_TEXT_MARGIN;
-        if (textBaseWidth(text) <= max) {
+        if (textWidth(text) <= max) {
             return new String[]{text};
         }
         List<String> lines = new ArrayList<>();
         StringBuilder line = new StringBuilder();
         int width = 0;
         for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            int cw = fullWidth(c) ? S : S / 2;
+            char ch = text.charAt(i);
+            int cw = fullWidth(ch) ? S : S / 2;
             if (width + cw > max && line.length() > 0) {
                 lines.add(line.toString());
                 line.setLength(0);
                 width = 0;
             }
-            line.append(c);
+            line.append(ch);
             width += cw;
         }
         if (line.length() > 0) {
@@ -285,8 +518,8 @@ final class KbdLayout {
     }
 
     static final class CandItem {
-        final int index;   // 候选序号
-        final int keys;    // 占用的键宽（偶数）
+        final int index;
+        final int keys;
 
         CandItem(int index, int keys) {
             this.index = index;
@@ -296,16 +529,15 @@ final class KbdLayout {
 
     static final class CandRow {
         final List<CandItem> items = new ArrayList<>();
-        int keys;    // 本行已用键宽
-        int slots;   // 行高 = slots 个文字行（超长词为 2）
+        int keys;
+        int slots;
     }
 
-    static List<CandRow> candidateRows(List<String> candidates) {
-        return candidateRows(candidates, CAND_ROW_KEYS);
+    List<CandRow> candidateRows(List<String> candidates) {
+        return candidateRows(candidates, PORTRAIT_ROW_KEYS);
     }
 
-    /** 候选按 rowKeys 键一行装箱；超长词独占整行并占多行高。 */
-    static List<CandRow> candidateRows(List<String> candidates, int rowKeys) {
+    List<CandRow> candidateRows(List<String> candidates, int rowKeys) {
         List<CandRow> rows = new ArrayList<>();
         CandRow row = null;
         for (int i = 0; i < candidates.size(); i++) {
@@ -323,35 +555,33 @@ final class KbdLayout {
         return rows;
     }
 
-    static int candRowBaseHeight(int slots) {
-        return slots * S + (slots - 1) * G;
+    int candRowBaseHeight(int slots) {
+        return slots * S + (slots - 1) * g;
     }
 
-    static int candScrollMax(List<CandRow> rows) {
-        return candScrollMax(rows, CAND_PANEL_H);
+    int candScrollMax(List<CandRow> rows) {
+        return candScrollMax(rows, expH);
     }
 
-    /** 竖屏：常驻行占 1 行，上限 = 末行 − 可容纳行数。 */
-    static int candScrollMax(List<CandRow> rows, int panelH) {
+    int candScrollMax(List<CandRow> rows, int panelH) {
         if (rows.isEmpty()) {
             return 0;
         }
         return Math.max(0, rows.size() - 1 - rowsFitting(rows, panelH));
     }
 
-    /** 横屏：面板从第 k 行开始铺满，上限 = 行数 − 可容纳行数。 */
-    static int candPanelScrollMax(List<CandRow> rows, int panelH) {
+    int candPanelScrollMax(List<CandRow> rows, int panelH) {
         if (rows.isEmpty()) {
             return 0;
         }
         return Math.max(0, rows.size() - rowsFitting(rows, panelH));
     }
 
-    private static int rowsFitting(List<CandRow> rows, int panelH) {
+    private int rowsFitting(List<CandRow> rows, int panelH) {
         int used = 0;
         int count = 0;
         for (int i = rows.size() - 1; i >= 0; i--) {
-            int need = candRowBaseHeight(rows.get(i).slots) + (count > 0 ? G : 0);
+            int need = candRowBaseHeight(rows.get(i).slots) + (count > 0 ? g : 0);
             if (used + need > panelH) {
                 break;
             }
@@ -361,15 +591,14 @@ final class KbdLayout {
         return count;
     }
 
-    float candCellWidth(int keys) {
-        return s(candCellBase(keys));
+    int candCellWidth(int keys) {
+        return candCellBase(keys);
     }
 
-    float candRowHeight(int slots) {
-        return s(candRowBaseHeight(slots));
+    int candRowHeight(int slots) {
+        return candRowBaseHeight(slots);
     }
 
-    /** 一行候选的格子矩形：从候选区左缘起、逐格累加。 */
     float[][] candRowRects(CandRow row, float top, float height) {
         return candRowRects(row, candSide, top, height);
     }
@@ -380,7 +609,7 @@ final class KbdLayout {
         for (int i = 0; i < row.items.size(); i++) {
             float w = candCellWidth(row.items.get(i).keys);
             rects[i] = new float[]{x, top, x + w, top + height};
-            x += w + s(G);
+            x += w + g;
         }
         return rects;
     }

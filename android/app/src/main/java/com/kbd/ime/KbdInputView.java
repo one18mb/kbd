@@ -10,6 +10,9 @@ import android.os.Looper;
 import android.view.MotionEvent;
 import android.view.View;
 
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+
 /**
  * Android 适配层：Canvas 渲染 + 触摸转发。
  * 不含任何业务规则；几何、手势、状态分别由 KbdLayout / KbdGestures / KbdApp 负责。
@@ -29,6 +32,11 @@ final class KbdInputView extends View implements KbdRenderer.Sink, KbdGestures.T
     private KbdGestures gestures;
     private Canvas canvasRef;
     private boolean dirty = true;
+    private int availableHeight;
+    /** 每个设备/方向只算一次；旋转回来直接复用。 */
+    private static final int LAYOUT_CACHE_MAX = 4;
+    private final LinkedHashMap<String, KbdLayout> layoutCache =
+            new LinkedHashMap<>(4, 0.75f, true);
 
     private final Runnable longPressRun = new Runnable() {
         @Override
@@ -64,19 +72,14 @@ final class KbdInputView extends View implements KbdRenderer.Sink, KbdGestures.T
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         applyPalette();
-        refreshOrientation();
+        refreshLayout();
     }
 
-    /** 屏幕方向可能变化：下次测量重建布局。 */
-    void refreshOrientation() {
+    /** 窗口尺寸/安全区变化：下次测量重建布局。 */
+    void refreshLayout() {
         dirty = true;
         requestLayout();
         invalidate();
-    }
-
-    private boolean isLandscape() {
-        return getResources().getConfiguration().orientation
-                == Configuration.ORIENTATION_LANDSCAPE;
     }
 
     private int widthHint(int spec) {
@@ -84,28 +87,54 @@ final class KbdInputView extends View implements KbdRenderer.Sink, KbdGestures.T
         return w > 0 ? w : getResources().getDisplayMetrics().widthPixels;
     }
 
+    /**
+     * 模式/F 级按屏幕高度算。IME 窗口在首次测量后可能被压到键盘高度，
+     * 不能把 MeasureSpec 的当前高度当成屏幕高，否则会越测越小。
+     */
+    private int heightHint(int spec) {
+        int screen = getResources().getDisplayMetrics().heightPixels;
+        return Math.max(screen, MeasureSpec.getSize(spec));
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = widthHint(widthMeasureSpec);
-        rebuild(width);
+        availableHeight = heightHint(heightMeasureSpec);
+        rebuild(width, availableHeight);
         setMeasuredDimension(width, layout.totalH);
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        rebuild(w);
+        rebuild(w, availableHeight > 0 ? availableHeight
+                : getResources().getDisplayMetrics().heightPixels);
     }
 
-    private void rebuild(int width) {
-        boolean landscape = isLandscape();
-        if (!dirty && layout != null && layout.width == width
-                && layout.landscape == landscape) {
+    private void rebuild(int width, int height) {
+        int b = app.bottomSafe();
+        if (layout != null && layout.width == width
+                && layout.height == height && layout.b == b) {
+            dirty = false;
             return;
         }
-        layout = new KbdLayout(width, landscape);
+        String key = width + "x" + height + "@" + b;
+        KbdLayout cached = layoutCache.get(key);
+        if (cached == null) {
+            cached = new KbdLayout(width, height, b);
+            layoutCache.put(key, cached);
+            if (layoutCache.size() > LAYOUT_CACHE_MAX) {
+                Iterator<String> it = layoutCache.keySet().iterator();
+                if (it.hasNext()) {
+                    it.next();
+                    it.remove();
+                }
+            }
+        }
+        layout = cached;
         gestures = new KbdGestures(layout, app, this);
-        app.setLandscape(landscape);
+        app.setLayout(layout);
+        app.setLandscape(layout.landscape);
         dirty = false;
     }
 

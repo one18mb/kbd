@@ -1,10 +1,10 @@
-# KBD 输入法后端设计（v0.2）
+# KBD 输入法后端设计（v1.0）
 
 > 状态：M2.0 构建 spike 已通过（宿主机 + 鸿蒙 4.0 真机）；四项性能指标待测
 >
 > 相关文档：[kbd-design.md](kbd-design.md)（前端与交互设计）、[dev-env.md](dev-env.md)（开发环境与清理清单）
 >
-> 前端已冻结：`webdemo/` 的布局与交互作为原生实现的唯一参考。
+> 前端几何见 [kbd-adaptive.md](kbd-adaptive.md)，行为见 [kbd-parity.md](kbd-parity.md)；`webdemo/` 是自适应原型。
 
 ---
 
@@ -77,21 +77,22 @@
 
 ```java
 public interface EngineBridge {
-    void load(File dictDir, Scheme scheme);
+    void load(String dataDir, String userDir); // 只读词典 + 可写用户数据
     boolean isReady();
 
-    void setScheme(Scheme scheme);          // FULL / FLYPY
+    void setScheme(String scheme);          // quanpin / xiaohe / ziranma / ms / ziguang / abc / zhongwenzhixing / pinyinjiajia / gb
     void input(int keyCode);                // 字母/数字等字符键
     void backspace();
     State state(int candidateLimit);        // 当前预编辑 + 候选
     String select(int index);               // 返回本次上屏文本
-    void reset();                           // 清空当前会话
-    void saveUserDict();
+    void reset();                           // 清空当前会话（保留跨输入框上文）
+    void recordText(String text);           // 非候选上屏按字符计入上文
+    void recordBackspace();                 // 已上屏文本被删，裁掉上文末尾一个字符
+    void saveUserDict();                    // 保存自学习历史
 
     final class State {
         public final String preedit;        // 展示用，如 ni'hao
         public final String[] candidates;   // 最多 candidateLimit 个
-        public final boolean hasMore;       // 是否被 limit 截断
     }
 }
 ```
@@ -132,14 +133,27 @@ public interface EngineBridge {
 
 待验证：libime 是否提供 `preedit()`；若不提供，预编辑由前端拼接原始按键。
 
-## 7. 双拼（小鹤）
+## 7. 输入方案（8 种双拼 + 全拼）
 
-1. 在 pin 定的 libime 版本里检索内置双拼方案表，确认是否包含小鹤（flypy）。
-2. 若包含：`Scheme.FLYPY` 直接映射到该 profile。
-3. 若不含：
-   - 优先在 libime 的 profile 表里补一份小鹤映射（改动小、行为与原生一致），代价是维护 vendor 补丁；
-   - 不在 wrapper 里做“小鹤→全拼”转换：音节切分依赖词典，自己实现会引入歧义。
-4. 验收：用 30 个常用双拼串对比全拼结果，候选首项一致率 ≥ 95%。
+libime 1.1.17 的 `ShuangpinBuiltinProfile` 提供 **8 种内置双拼**：
+
+| code | 方案 |
+| --- | --- |
+| `ziranma` | 自然码 |
+| `ms` | 微软双拼 |
+| `ziguang` | 紫光双拼 |
+| `abc` | 智能ABC |
+| `zhongwenzhixing` | 中文之星 |
+| `pinyinjiajia` | 拼音加加 |
+| `xiaohe` | 小鹤双拼 |
+| `gb` | 国标双拼 |
+
+另有 `quanpin` 全拼（`setUseShuangpin(false)`），共 9 种可选方案。默认 `quanpin`。
+
+- 前端转义命令 `\zh=code` 切换方案；`KbdIme` 持久化到 `SharedPreferences("kbd")` 的 `scheme`。
+- `Engine::setScheme`：更新 profile；若已加载则重建 `PinyinContext`，清空当前组词，保留跨输入框上文。
+- `quanpin` 不使用 profile，只关闭双拼解析。
+- 宿主端 `pipeline.cpp` 会构造 8 个 profile 并打印 valid/table 数量，确认版本内置表完整。
 
 ## 8. 数据与包体
 
@@ -257,7 +271,7 @@ M2.2 竖屏第一版（2026-11-08）：
 | --- | --- | --- | --- |
 | M2.0 构建 spike | 编 `Fcitx5Utils + libime` arm64-v8a；确认小鹤；量四项指标 | `.so` 可加载，`input → candidates → select` 跑通 | **完成**：编译、小鹤、链路、鸿蒙真机拉起均通过；性能指标待测 |
 | M2.1 接口冻结 | `EngineBridge` 与前端模型对齐，写入本稿 | 接口评审通过 | **完成**：`state/input/backspace/select/reset` 已稳定，前端 Host 另接浮层/KeyEvent/简繁/设置 |
-| M2.2 原生键盘 | 移植 `layout.js` 与状态机，竖屏优先 | 竖屏可完成日常输入 | **完成**：竖屏 + 横屏 + 命令面板 + 组合键；宿主端 118 条断言、16 张快照通过；真机手感待验 |
+| M2.2 原生键盘 | 移植 `layout.js` 与状态机，竖屏优先 | 竖屏可完成日常输入 | **完成**：竖屏 + 横屏 + 自适应几何 + 组合键 + 方案切换；宿主端 131 条断言、20 张快照通过；真机手感待验 |
 | M2.3 横屏与打磨 | 横屏、符号、转义、用户词典、真机手感 | 与 web 原型行为一致 | **进行中**：横屏已完成；剩余用户词典、四项性能实测、真机手感 |
 
 ## 13. 风险与回退
@@ -282,10 +296,31 @@ M2.2 竖屏第一版（2026-11-08）：
 
 ## 15. 后端下一步（前端已冻结）
 
-1. **用户词典持久化**：`Engine::saveUserDict` 目前是空实现；接入 `UserLanguageModel` 的保存/加载与落盘时机（输入结束、切输入框、退到后台）。
+1. ~~**用户词典持久化**~~ **已完成**：见 §16（A+B）。
 2. **四项性能实测**：冷加载、单键延迟、内存、包体——需真机采集；宿主端脚本只能验证功能与渲染。
 3. **简繁输出**：现用 Android ICU `Hans-Hant` 在 Java 层转换（不可用时原文回退）；若质量或可用性不足，再评估内置 OpenCC 词表。
-4. **联想/预测**：评估 libime `PinyinPrediction` 能否低成本接入；不能则明确不做，避免半成品。
+4. **联想/预测**：上文重排已由 `setContextWordsWithPinyin` 实现；如需「下一词推荐」再做 `PinyinPrediction`，不混进当前候选。
 5. **JNI 健壮性**：加载失败可读错误、重复 load、16KB page-size 兼容、`GetStringUTFChars` 空指针路径、异常清理。
 6. **线程模型**：输入/查询目前在 UI 线程并走全局锁；libime 查询为内存操作，先实测单键延迟，超标再异步化（不改前端接口）。
 7. **包体**：51.2MB = 引擎 3.4MB（strip）+ 词典/语言模型 + Unifont；如需压缩，优先裁剪数据而非模型。
+
+## 16. A+B：自学习与上文预测（已实现）
+
+**A 自学习（HistoryBigram）**
+- 候选整段完成后调用 `PinyinContext::learn()`：把「上文 + 本次选择（词+拼音码）」写进 `UserLanguageModel::history()`。
+- 收键盘/切走时 `UserLanguageModel::save` 落盘到 `filesDir/engine-user/history.bigram`；`load` 时读回。
+
+**B 上文预测（上下文重排）**
+- 引擎维护跨输入框上文：`vector<HistoryBigram::WordWithCode>`，按**字符**裁到 10 个。
+- 每次上文变化调用 `PinyinContext::setContextWordsWithPinyin(history)`；`PinyinContext::type` 用它作初始 LM 状态，候选自动带上下文重排。
+- n→n-1 由 n-gram 回退天然完成，不需要前端逐级尝试。
+
+**记账规则**
+- 候选上屏：`select` 内部记账（整段完成时入上文并 `learn`）。
+- 英文/符号/转义文本：前端 `recordText` 按字符入上文。
+- 已上屏文本删除：`recordBackspace` 裁掉上文末尾一个字符（不关心编辑器实际删了哪个）。
+- 切输入框：`reset` 清会话但保留上文；收键盘时落盘。
+
+**已知边界**
+- 光标移动、选中替换、撤销等编辑器内部变化 IME 不可见，上文可能漂移；目前没有「清上文」命令，只能重启输入法清空。需要的话再加一条内部命令。
+- 10 字符上限只约束内存；上下文状态最多取 `maxOrder()-1` 个词，单键开销可忽略。

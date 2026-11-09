@@ -10,9 +10,14 @@
   var MAX_ESCAPE = 16;
 
   var state = {
-    orientation: 'portrait',
+    // 屏幕输入：模式由 layout 计算，不再读系统方向。
+    W: 720,
+    H: 1604,
+    b: 32,
+    ratio: 0.75,
+    modeOverride: 'auto',
+    orientation: 'portrait', // 由 layout 计算后写回，供 view/input 使用
     theme: 'auto',
-    safeInset: 32,
     lang: 'en',
     layer: 'letters',
     symbolPage: 0,
@@ -54,12 +59,23 @@
   }
 
   function symbolPageCount() {
-    return Math.max(1, Math.ceil(D.symbols.length / L.symbolSlots(state.orientation)));
+    var slots = metrics ? metrics.symbolSlots : 30;
+    return Math.max(1, Math.ceil(D.symbols.length / slots));
   }
 
-  // 结构变化：方向/层/展开/键盘显隐 → 重建键盘。
+  // 结构变化：屏幕/模式/层/展开/键盘显隐 → 重建键盘。
   function rebuildAll() {
-    metrics = L.compute(state.orientation, state.safeInset);
+    metrics = L.compute({
+      W: state.W,
+      H: state.H,
+      b: state.b,
+      R: state.ratio,
+      mode: state.modeOverride
+    });
+    state.orientation = metrics.orientation;
+    var maxPage = Math.max(0, Math.ceil(D.symbols.length / metrics.symbolSlots) - 1);
+    if (state.symbolPage > maxPage) state.symbolPage = maxPage;
+    if (state.symbolPage < 0) state.symbolPage = 0;
     V.setMetrics(metrics);
     V.applyFrame(state);
     V.build(state);
@@ -566,53 +582,115 @@
     clearTempMods();
   }
 
-  // ---------- 方向 ----------
+  // ---------- 屏幕与模式 ----------
 
-  function setOrientation(next) {
-    if (next === state.orientation) return false;
-    state.orientation = next;
-    if (next === 'landscape' && state.layer === 'symbols' && state.escape) {
+  function clampScreen() {
+    state.W = Math.max(120, Math.min(4000, Math.round(state.W)));
+    state.H = Math.max(120, Math.min(4000, Math.round(state.H)));
+    if (!(state.ratio > 0.2 && state.ratio <= 1)) state.ratio = L.DEFAULTS.R;
+  }
+
+  function syncLayoutControls(presetName) {
+    var els = V.els;
+    if (els.wInput) els.wInput.value = state.W;
+    if (els.hInput) els.hInput.value = state.H;
+    if (els.rInput) els.rInput.value = state.ratio;
+    if (els.modeSelect) els.modeSelect.value = state.modeOverride;
+    if (els.presetSelect) {
+      var label = presetName || '';
+      var found = false;
+      for (var i = 0; i < els.presetSelect.options.length; i++) {
+        if (els.presetSelect.options[i].value === label) { found = true; break; }
+      }
+      els.presetSelect.value = found ? label : '自定义';
+    }
+  }
+
+  function applyScreen(presetName) {
+    clampScreen();
+    if (state.orientation === 'landscape' && state.layer === 'symbols' && state.escape) {
       state.escape = false;
       state.escapeBuffer = '\\';
     }
-    state.symbolPage = Math.min(state.symbolPage, symbolPageCount() - 1);
-    if (state.symbolPage < 0) state.symbolPage = 0;
     rebuildAll();
-    return true;
+    syncLayoutControls(presetName);
+    logEvent('屏幕 ' + state.W + '×' + state.H + ' → ' +
+      (state.orientation === 'portrait' ? '竖屏' : '横屏') +
+      ' n=' + metrics.n + ' k=' + metrics.K + ' g=' + metrics.g + ' m=' + metrics.m);
   }
 
-  function toggleOrientation() {
-    setOrientation(state.orientation === 'portrait' ? 'landscape' : 'portrait');
-    logEvent('方向：' + (state.orientation === 'portrait' ? '竖屏' : '横屏'));
+  function findPresetLabel(W, H) {
+    for (var i = 0; i < L.PRESETS.length; i++) {
+      var p = L.PRESETS[i];
+      if (!p.custom && p.W === W && p.H === H) return p.label;
+    }
+    return '自定义';
   }
 
-  // 全屏时以实际视口方向为准，避免竖屏档铺满横屏。
+  function populatePresets() {
+    var select = V.els.presetSelect;
+    if (!select) return;
+    select.innerHTML = '';
+    L.PRESETS.forEach(function (p) {
+      var opt = document.createElement('option');
+      opt.value = p.label;
+      opt.textContent = p.label;
+      select.appendChild(opt);
+    });
+  }
+
+  function bindLayoutControls() {
+    var els = V.els;
+    if (els.presetSelect) {
+      els.presetSelect.addEventListener('change', function () {
+        var label = els.presetSelect.value;
+        var p = L.PRESETS.filter(function (x) { return x.label === label; })[0];
+        if (!p) return;
+        if (p.custom) { syncLayoutControls('自定义'); return; }
+        state.W = p.W;
+        state.H = p.H;
+        applyScreen(p.label);
+      });
+    }
+
+    var numTimer = null;
+
+    function commitNumbers() {
+      var w = parseFloat(els.wInput && els.wInput.value);
+      var h = parseFloat(els.hInput && els.hInput.value);
+      var r = parseFloat(els.rInput && els.rInput.value);
+      if (!isFinite(w) || !isFinite(h) || !isFinite(r)) return;
+      state.W = w;
+      state.H = h;
+      state.ratio = r;
+      applyScreen(findPresetLabel(state.W, state.H));
+    }
+
+    function scheduleNumbers() {
+      clearTimeout(numTimer);
+      numTimer = setTimeout(commitNumbers, 250);
+    }
+
+    [els.wInput, els.hInput, els.rInput].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('input', scheduleNumbers);
+      el.addEventListener('change', function () {
+        clearTimeout(numTimer);
+        commitNumbers();
+      });
+    });
+
+    if (els.modeSelect) {
+      els.modeSelect.addEventListener('change', function () {
+        state.modeOverride = els.modeSelect.value;
+        applyScreen(findPresetLabel(state.W, state.H));
+      });
+    }
+  }
+
+  // 视口变化只影响画布缩放；键盘模式由 (W,H,h_a) 决定。
   function handleViewportChange() {
-    if (!metrics) return;
-    if (document.fullscreenElement) {
-      var wrap = V.els.stageWrap;
-      var want = wrap.clientWidth >= wrap.clientHeight ? 'landscape' : 'portrait';
-      if (want !== state.orientation && setOrientation(want)) return;
-    }
     V.fitStage();
-  }
-
-  // 部分手机浏览器进入全屏会按“默认方向”重置为竖屏，这里锁定当前方向。
-  function lockViewportOrientation() {
-    var so = screen.orientation;
-    if (!so || !so.lock) return;
-    var type = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait';
-    try {
-      var p = so.lock(type);
-      if (p && p.catch) p.catch(function () {});
-    } catch (e) {}
-  }
-
-  function unlockViewportOrientation() {
-    var so = screen.orientation;
-    if (so && so.unlock) {
-      try { so.unlock(); } catch (e) {}
-    }
   }
 
   // ---------- 主题与演示 ----------
@@ -664,7 +742,6 @@
   function bindControls() {
     var els = V.els;
 
-    on(els.orientationBtn, 'click', toggleOrientation);
     on(els.themeBtn, 'click', cycleTheme);
     on(els.demoBtn, 'click', demoNihao);
     on(els.symbolBtn, 'click', function () {
@@ -706,13 +783,11 @@
       }
     }).attach();
 
+    bindLayoutControls();
+
     window.addEventListener('resize', handleViewportChange);
     window.addEventListener('orientationchange', handleViewportChange);
-    document.addEventListener('fullscreenchange', function () {
-      if (document.fullscreenElement) lockViewportOrientation();
-      else unlockViewportOrientation();
-      handleViewportChange();
-    });
+    document.addEventListener('fullscreenchange', handleViewportChange);
 
     var media = window.matchMedia('(prefers-color-scheme: dark)');
     if (media.addEventListener) {
@@ -736,11 +811,13 @@
       },
       onCandidate: commitCandidate
     });
+    populatePresets();
     bindControls();
     applyTheme();
     rebuildAll();
+    syncLayoutControls(findPresetLabel(state.W, state.H));
     V.renderLog(logEntries, state.logOpen);
-    logEvent('KBD 原型启动');
+    logEvent('KBD 自适应原型启动');
   }
 
   init();

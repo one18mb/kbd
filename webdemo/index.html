@@ -3,14 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>KBD 输入法原型</title>
+  <title>KBD 自适应原型</title>
   <link rel="preload" href="fonts/unifont.otf" as="font" type="font/otf" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=12">
+  <link rel="stylesheet" href="css/styles.css?v=26">
 </head>
 <body>
   <header class="controls" id="controls">
-    <span class="brand">KBD 原型</span>
-    <button type="button" id="orientationBtn">横屏预览</button>
+    <span class="brand">KBD 自适应</span>
+    <label class="ctl">屏幕
+      <select id="presetSelect"></select>
+    </label>
+    <label class="ctl">W
+      <input id="wInput" type="number" min="120" max="4000" step="1">
+    </label>
+    <label class="ctl">H
+      <input id="hInput" type="number" min="120" max="4000" step="1">
+    </label>
+    <label class="ctl">R (W/H)
+      <input id="rInput" type="number" min="0.5" max="1" step="0.01">
+    </label>
+    <label class="ctl">模式
+      <select id="modeSelect">
+        <option value="auto">自动</option>
+        <option value="portrait">竖屏</option>
+        <option value="landscape">横屏</option>
+      </select>
+    </label>
     <button type="button" id="themeBtn">主题：跟随系统</button>
     <button type="button" id="demoBtn">示例 ni'hao</button>
     <button type="button" id="symbolBtn">符号层</button>
@@ -19,6 +37,7 @@
     <button type="button" id="logBtn">事件日志</button>
     <button type="button" id="resetBtn">重置</button>
     <button type="button" id="fullscreenBtn">全屏 1:1</button>
+    <span class="readout" id="layoutReadout"></span>
   </header>
 
   <main class="stage-wrap" id="stageWrap">
@@ -35,10 +54,10 @@
 
   <section class="event-log hidden" id="eventLog"></section>
 
-  <script src="js/data.js?v=13"></script>
-  <script src="js/layout.js?v=13"></script>
-  <script src="js/view.js?v=13"></script>
-  <script src="js/input.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/data.js?v=26"></script>
+  <script src="js/layout.js?v=26"></script>
+  <script src="js/view.js?v=26"></script>
+  <script src="js/input.js?v=26"></script>
+  <script src="js/app.js?v=26"></script>
 </body>
 </html>

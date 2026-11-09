@@ -13,11 +13,11 @@ public final class LibimeEngine implements EngineBridge {
 
     private static native String nativeSelfTest();
 
-    private static native void nativeLoad(String dir);
+    private static native void nativeLoad(String dataDir, String userDir);
 
     private static native boolean nativeIsReady();
 
-    private static native void nativeSetShuangpin(boolean flypy);
+    private static native void nativeSetScheme(String scheme);
 
     private static native boolean nativeInput(char key);
 
@@ -29,6 +29,10 @@ public final class LibimeEngine implements EngineBridge {
 
     private static native void nativeReset();
 
+    private static native void nativeRecordText(String text);
+
+    private static native void nativeRecordBackspace();
+
     private static native void nativeSaveUserDict();
 
     public static String selfTest() {
@@ -36,8 +40,8 @@ public final class LibimeEngine implements EngineBridge {
     }
 
     @Override
-    public void load(String dictDir) {
-        nativeLoad(dictDir);
+    public void load(String dataDir, String userDir) {
+        nativeLoad(dataDir, userDir);
     }
 
     @Override
@@ -46,8 +50,8 @@ public final class LibimeEngine implements EngineBridge {
     }
 
     @Override
-    public void setShuangpin(boolean flypy) {
-        nativeSetShuangpin(flypy);
+    public void setScheme(String scheme) {
+        nativeSetScheme(scheme);
     }
 
     @Override
@@ -73,6 +77,16 @@ public final class LibimeEngine implements EngineBridge {
     @Override
     public void reset() {
         nativeReset();
+    }
+
+    @Override
+    public void recordText(String text) {
+        nativeRecordText(text);
+    }
+
+    @Override
+    public void recordBackspace() {
+        nativeRecordBackspace();
     }
 
     @Override

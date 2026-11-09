@@ -1,5 +1,7 @@
 #include <jni.h>
 
+#include <cstdint>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -14,18 +16,101 @@
 
 namespace {
 
+/** 上文最多保留 10 个字符（按字符，不按词）。 */
+constexpr size_t kHistoryChars = 10;
+
+size_t utf8CharLen(uint8_t c) {
+    if (c < 0x80) {
+        return 1;
+    }
+    if ((c >> 5) == 0x6) {
+        return 2;
+    }
+    if ((c >> 4) == 0xE) {
+        return 3;
+    }
+    if ((c >> 3) == 0x1E) {
+        return 4;
+    }
+    return 1;
+}
+
+std::vector<std::string> splitUtf8(const std::string &text) {
+    std::vector<std::string> out;
+    for (size_t i = 0; i < text.size();) {
+        size_t len = utf8CharLen(static_cast<uint8_t>(text[i]));
+        if (i + len > text.size()) {
+            len = text.size() - i;
+        }
+        out.emplace_back(text, i, len);
+        i += len;
+    }
+    return out;
+}
+
+size_t utf8Count(const std::string &text) {
+    size_t n = 0;
+    for (size_t i = 0; i < text.size(); i += utf8CharLen(static_cast<uint8_t>(text[i]))) {
+        ++n;
+    }
+    return n;
+}
+
 std::string versionString() {
-    return "kbd-engine 0.1 / libime 1.1.17";
+    return "kbd-engine 1.0 / libime 1.1.17";
+}
+
+/** libime 1.1.17 内置 8 种双拼；quanpin 走全拼，不使用 profile。 */
+libime::ShuangpinBuiltinProfile builtinProfile(const std::string &scheme) {
+    using P = libime::ShuangpinBuiltinProfile;
+    if (scheme == "ziranma") {
+        return P::Ziranma;
+    }
+    if (scheme == "ms") {
+        return P::MS;
+    }
+    if (scheme == "ziguang") {
+        return P::Ziguang;
+    }
+    if (scheme == "abc") {
+        return P::ABC;
+    }
+    if (scheme == "zhongwenzhixing") {
+        return P::Zhongwenzhixing;
+    }
+    if (scheme == "pinyinjiajia") {
+        return P::PinyinJiajia;
+    }
+    if (scheme == "gb") {
+        return P::GB;
+    }
+    return P::Xiaohe;
 }
 
 std::string selfTest() {
     using namespace libime;
-    ShuangpinProfile profile(ShuangpinBuiltinProfile::Xiaohe);
+    struct Item {
+        const char *code;
+        ShuangpinBuiltinProfile profile;
+    };
+    const Item items[] = {
+            {"xiaohe", ShuangpinBuiltinProfile::Xiaohe},
+            {"ziranma", ShuangpinBuiltinProfile::Ziranma},
+            {"ms", ShuangpinBuiltinProfile::MS},
+            {"ziguang", ShuangpinBuiltinProfile::Ziguang},
+            {"abc", ShuangpinBuiltinProfile::ABC},
+            {"zhongwenzhixing", ShuangpinBuiltinProfile::Zhongwenzhixing},
+            {"pinyinjiajia", ShuangpinBuiltinProfile::PinyinJiajia},
+            {"gb", ShuangpinBuiltinProfile::GB},
+    };
     std::ostringstream os;
     os << "libime 已链接\n";
-    os << "小鹤双拼：内置 profile\n";
-    os << "合法键数 " << profile.validInput().size()
-       << "，映射表 " << profile.table().size() << " 项";
+    os << "内置双拼 8 种 + 全拼 quanpin\n";
+    for (const auto &item : items) {
+        ShuangpinProfile profile(item.profile);
+        os << item.code << "：合法键 " << profile.validInput().size()
+           << "，映射 " << profile.table().size() << " 项\n";
+    }
     return os.str();
 }
 
@@ -34,7 +119,7 @@ std::string selfTest() {
  */
 class Engine {
 public:
-    bool load(const std::string &dir) {
+    bool load(const std::string &dir, const std::string &userDir) {
         try {
             auto dict = std::make_unique<libime::PinyinDictionary>();
             dict->load(0, (dir + "/sc.dict").c_str(),
@@ -44,14 +129,26 @@ public:
                 (dir + "/sc.lm").c_str());
             auto model = std::make_unique<libime::UserLanguageModel>(lmFile);
 
+            // A：用户自学习（HistoryBigram）落盘文件
+            userFile_ = userDir + "/history.bigram";
+            {
+                std::ifstream in(userFile_);
+                if (in) {
+                    model->load(in);
+                }
+            }
+
             ime_ = std::make_unique<libime::PinyinIME>(std::move(dict),
                                                        std::move(model));
             ime_->setShuangpinProfile(std::make_shared<libime::ShuangpinProfile>(
-                libime::ShuangpinBuiltinProfile::Xiaohe));
+                builtinProfile(scheme_)));
 
             ctx_ = std::make_unique<libime::PinyinContext>(ime_.get());
-            ctx_->setUseShuangpin(flypy_);
+            ctx_->setUseShuangpin(scheme_ != "quanpin");
+            history_.clear();
+            applyContext();   // B：恢复跨输入框的上文
             ready_ = true;
+            dirty_ = false;
             error_.clear();
             committed_.clear();
             return true;
@@ -68,11 +165,22 @@ public:
 
     const std::string &error() const { return error_; }
 
-    void setShuangpin(bool flypy) {
-        flypy_ = flypy;
-        if (ctx_) {
-            ctx_->setUseShuangpin(flypy);
+    void setScheme(const std::string &scheme) {
+        scheme_ = scheme;
+        if (ready_ && ime_) {
+            applyScheme();
         }
+    }
+
+    /** 换方案时重建 context；保留上文。 */
+    void applyScheme() {
+        ime_->setShuangpinProfile(std::make_shared<libime::ShuangpinProfile>(
+            builtinProfile(scheme_)));
+        ctx_.reset();
+        ctx_ = std::make_unique<libime::PinyinContext>(ime_.get());
+        ctx_->setUseShuangpin(scheme_ != "quanpin");
+        committed_.clear();
+        applyContext();
     }
 
     bool input(char key) {
@@ -133,28 +241,116 @@ public:
         }
         committed_ = sentence;
         if (ctx_->selected()) {
+            // A：把「上文 + 本次整段」记进 HistoryBigram
+            ctx_->learn();
+            // B：整段进入跨输入框上文，并刷新 context words
+            for (const auto &word : ctx_->selectedWordsWithPinyin()) {
+                history_.push_back(word);
+            }
+            trimHistory();
             ctx_->clear();
             committed_.clear();
+            applyContext();
         }
+        dirty_ = true;
         return delta;
     }
 
     void reset() {
         if (ctx_) {
+            if (ctx_->selected()) {
+                ctx_->learn();
+            }
+            for (const auto &word : ctx_->selectedWordsWithPinyin()) {
+                history_.push_back(word);
+            }
+            trimHistory();
             ctx_->clear();
+            applyContext();
         }
         committed_.clear();
     }
 
+    /** 非候选上屏（英文/符号/转义文本）：按字符计入上文。 */
+    void recordText(const std::string &text) {
+        if (!ready_ || text.empty()) {
+            return;
+        }
+        addHistory(text, std::string());
+    }
+
+    /** 已上屏文本被删除：按字符裁掉上文末尾（不关心编辑器实际删了哪个）。 */
+    void recordBackspace() {
+        if (!ready_ || history_.empty()) {
+            return;
+        }
+        auto chars = splitUtf8(history_.back().first);
+        if (chars.size() <= 1) {
+            history_.pop_back();
+        } else {
+            std::string head;
+            for (size_t i = 0; i + 1 < chars.size(); ++i) {
+                head += chars[i];
+            }
+            history_.back() = {head, std::string()};
+        }
+        trimHistory();
+        applyContext();
+        dirty_ = true;
+    }
+
     void saveUserDict() {
-        /* M2.1 接入用户词典持久化，当前无用户数据文件。 */
+        if (!ready_ || userFile_.empty()) {
+            return;
+        }
+        std::ofstream out(userFile_);
+        if (!out) {
+            return;
+        }
+        ime_->model()->save(out);
+        dirty_ = false;
     }
 
 private:
+    void applyContext() {
+        if (ctx_) {
+            ctx_->setContextWordsWithPinyin(history_);
+        }
+    }
+
+    void addHistory(const std::string &text, const std::string &code) {
+        if (!code.empty()) {
+            history_.emplace_back(text, code);
+        } else {
+            for (const auto &ch : splitUtf8(text)) {
+                history_.emplace_back(ch, std::string());
+            }
+        }
+        trimHistory();
+        applyContext();
+        dirty_ = true;
+    }
+
+    /** 上文按字符裁剪到 kHistoryChars。 */
+    void trimHistory() {
+        size_t total = 0;
+        for (const auto &w : history_) {
+            total += utf8Count(w.first);
+        }
+        while (total > kHistoryChars && !history_.empty()) {
+            total -= utf8Count(history_.front().first);
+            history_.erase(history_.begin());
+        }
+    }
+
     std::unique_ptr<libime::PinyinIME> ime_;
     std::unique_ptr<libime::PinyinContext> ctx_;
+    /** 跨输入框的上文（词 + 拼音码），最多 kHistoryChars 个字符。 */
+    std::vector<libime::HistoryBigram::WordWithCode> history_;
+    std::string userFile_;
     bool ready_ = false;
-    bool flypy_ = true;
+    bool dirty_ = false;
+    std::string scheme_ = "quanpin";
     std::string error_;
     /** 当前组词内已上屏的前缀，用于计算 select 的增量。 */
     std::string committed_;
@@ -187,13 +383,17 @@ Java_com_kbd_ime_LibimeEngine_nativeSelfTest(JNIEnv *env, jclass) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_kbd_ime_LibimeEngine_nativeLoad(JNIEnv *env, jclass, jstring dir) {
+Java_com_kbd_ime_LibimeEngine_nativeLoad(JNIEnv *env, jclass, jstring dir,
+                                         jstring userDir) {
     const char *chars = env->GetStringUTFChars(dir, nullptr);
     std::string path = chars ? chars : "";
     env->ReleaseStringUTFChars(dir, chars);
+    const char *userChars = env->GetStringUTFChars(userDir, nullptr);
+    std::string userPath = userChars ? userChars : "";
+    env->ReleaseStringUTFChars(userDir, userChars);
 
     std::lock_guard<std::mutex> lock(engineMutex());
-    if (!engine().load(path)) {
+    if (!engine().load(path, userPath)) {
         jclass ex = env->FindClass("java/lang/IllegalStateException");
         if (ex) {
             env->ThrowNew(ex, engine().error().c_str());
@@ -208,10 +408,13 @@ Java_com_kbd_ime_LibimeEngine_nativeIsReady(JNIEnv *, jclass) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_kbd_ime_LibimeEngine_nativeSetShuangpin(JNIEnv *, jclass,
-                                                 jboolean flypy) {
+Java_com_kbd_ime_LibimeEngine_nativeSetScheme(JNIEnv *env, jclass,
+                                              jstring scheme) {
+    const char *chars = env->GetStringUTFChars(scheme, nullptr);
+    std::string value = chars ? chars : "quanpin";
+    env->ReleaseStringUTFChars(scheme, chars);
     std::lock_guard<std::mutex> lock(engineMutex());
-    engine().setShuangpin(flypy == JNI_TRUE);
+    engine().setScheme(value);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -261,6 +464,22 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_kbd_ime_LibimeEngine_nativeReset(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(engineMutex());
     engine().reset();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_kbd_ime_LibimeEngine_nativeRecordText(JNIEnv *env, jclass,
+                                               jstring text) {
+    const char *chars = env->GetStringUTFChars(text, nullptr);
+    std::string value = chars ? chars : "";
+    env->ReleaseStringUTFChars(text, chars);
+    std::lock_guard<std::mutex> lock(engineMutex());
+    engine().recordText(value);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_kbd_ime_LibimeEngine_nativeRecordBackspace(JNIEnv *, jclass) {
+    std::lock_guard<std::mutex> lock(engineMutex());
+    engine().recordBackspace();
 }
 
 extern "C" JNIEXPORT void JNICALL

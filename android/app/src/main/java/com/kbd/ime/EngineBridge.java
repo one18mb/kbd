@@ -5,11 +5,13 @@ package com.kbd.ime;
  */
 public interface EngineBridge {
 
-    void load(String dictDir);
+    /** dataDir = 只读词典目录；userDir = 可写用户数据（自学习历史）。 */
+    void load(String dataDir, String userDir);
 
     boolean isReady();
 
-    void setShuangpin(boolean flypy);
+    /** quanpin / xiaohe / ziranma / ms / ziguang / abc / zhongwenzhixing / pinyinjiajia / gb */
+    void setScheme(String scheme);
 
     void input(char key);
 
@@ -20,6 +22,12 @@ public interface EngineBridge {
     String select(int index);
 
     void reset();
+
+    /** 非候选上屏（英文/符号/转义），按字符计入上文。 */
+    void recordText(String text);
+
+    /** 已上屏文本被删除，裁掉上文末尾一个字符。 */
+    void recordBackspace();
 
     void saveUserDict();
 

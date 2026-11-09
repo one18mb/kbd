@@ -76,8 +76,7 @@ final class KbdRenderer {
             return;
         }
         drawLandscapeRows(sink, L, app, pressed);
-        float panelH = L.s(app.expanded
-                ? KbdLayout.CAND_PANEL_H : KbdLayout.LAND_PANEL_H);
+        float panelH = app.expanded ? L.kbH : L.landPanelH;
         drawLandscapeCandidates(sink, L, app, pressed, panelH);
         if (app.expanded) {
             return;
@@ -85,8 +84,8 @@ final class KbdRenderer {
         drawKey(sink, L, app, L.landSpaceRect(), KbdData.KEYS.get("space"), pressed);
         if (!app.composing() && !app.escape
                 && app.status != null && !app.status.isEmpty()) {
-            sink.text(app.status, L.midX + L.s(2), L.s(16), L.s(KbdLayout.S),
-                    textColor, false, L.midW - L.s(4));
+            sink.text(app.status, L.midX + L.g, L.S / 2f, L.S,
+                    textColor, false, L.midW - 2 * L.g);
         }
     }
 
@@ -117,11 +116,11 @@ final class KbdRenderer {
         }
     }
 
-    /** 横屏候选：中列 6 键一行，与竖屏同规则（偶数键宽、超长跨行、不截断）。 */
+    /** 横屏候选：中列 p 键一行，与竖屏同规则（偶数键宽、超长跨行、不截断）。 */
     private void drawLandscapeCandidates(Sink sink, KbdLayout L, KbdApp app,
                                          Pressed pressed, float panelH) {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(
-                app.candidates, KbdLayout.LAND_ROW_KEYS);
+        List<KbdLayout.CandRow> rows = L.candidateRows(
+                app.candidates, L.landRowKeys);
         float top = 0;
         for (int ri = app.candidateRow; ri < rows.size(); ri++) {
             KbdLayout.CandRow row = rows.get(ri);
@@ -137,30 +136,29 @@ final class KbdRenderer {
                 if (down) {
                     sink.fillRect(rect[0], rect[1], rect[2], rect[3], textColor);
                 }
-                String[] lines = KbdLayout.candLines(
-                        app.candidates.get(index), KbdLayout.LAND_ROW_KEYS);
+                String[] lines = L.candLines(
+                        app.candidates.get(index), L.landRowKeys);
                 for (int li = 0; li < lines.length && li < row.slots; li++) {
-                    float cy = top + li * (L.s(KbdLayout.S) + L.s(KbdLayout.G))
-                            + L.s(KbdLayout.S) / 2f;
-                    sink.text(lines[li], (rect[0] + rect[2]) / 2, cy, L.s(KbdLayout.S),
+                    float cy = top + li * (L.S + L.g) + L.S / 2f;
+                    sink.text(lines[li], (rect[0] + rect[2]) / 2, cy, L.S,
                             down ? keyColor : textColor, true, 0);
                 }
             }
-            top += h + L.s(KbdLayout.G);
+            top += h + L.g;
         }
     }
 
     // ---------- 状态行（仅引擎未就绪/出错时占候选行） ----------
 
     private void drawStatus(Sink sink, KbdLayout L, KbdApp app) {
-        if (app.commands || app.composing() || app.escape) {
+        if (app.composing() || app.escape) {
             return;
         }
         if (app.status == null || app.status.isEmpty()) {
             return;
         }
-        sink.text(app.status, L.s(2), L.s(16), L.s(KbdLayout.S), textColor,
-                false, L.width - L.s(4));
+        sink.text(app.status, L.g, L.S / 2f, L.S, textColor,
+                false, L.width - 2 * L.g);
     }
 
     // ---------- 候选行 ----------
@@ -179,9 +177,9 @@ final class KbdRenderer {
                 sink.fillRect(r[0], r[1], r[2], r[3], textColor);
             }
             // 常驻行只有 1 行高：超长词只露出首行
-            String line = KbdLayout.candLines(app.candidates.get(item.index))[0];
+            String line = L.candLines(app.candidates.get(item.index))[0];
             sink.text(line, (r[0] + r[2]) / 2, (r[1] + r[3]) / 2,
-                    L.s(KbdLayout.S), down ? keyColor : textColor, true, 0);
+                    L.S, down ? keyColor : textColor, true, 0);
         }
     }
 
@@ -216,13 +214,13 @@ final class KbdRenderer {
         sink.fillRect(rect[0], rect[1], rect[2], rect[3],
                 down ? textColor : keyColor);
         sink.text(symbol, (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2,
-                L.s(KbdLayout.S), down ? keyColor : textColor, true, rect[2] - rect[0]);
+                L.S, down ? keyColor : textColor, true, rect[2] - rect[0]);
     }
 
     // ---------- 展开层 ----------
 
     private void drawExpanded(Sink sink, KbdLayout L, KbdApp app, Pressed pressed) {
-        List<KbdLayout.CandRow> rows = KbdLayout.candidateRows(app.candidates);
+        List<KbdLayout.CandRow> rows = L.candidateRows(app.candidates);
         float top = L.expTop;
         float bottom = L.expTop + L.expH;
         for (int ri = app.candidateRow + 1; ri < rows.size(); ri++) {
@@ -239,15 +237,14 @@ final class KbdRenderer {
                 if (down) {
                     sink.fillRect(r[0], r[1], r[2], r[3], textColor);
                 }
-                String[] lines = KbdLayout.candLines(app.candidates.get(item.index));
+                String[] lines = L.candLines(app.candidates.get(item.index));
                 for (int li = 0; li < lines.length && li < row.slots; li++) {
-                    float cy = top + li * (L.s(KbdLayout.S) + L.s(KbdLayout.G))
-                            + L.s(KbdLayout.S) / 2f;
-                    sink.text(lines[li], (r[0] + r[2]) / 2, cy, L.s(KbdLayout.S),
+                    float cy = top + li * (L.S + L.g) + L.S / 2f;
+                    sink.text(lines[li], (r[0] + r[2]) / 2, cy, L.S,
                             down ? keyColor : textColor, true, 0);
                 }
             }
-            top += h + L.s(KbdLayout.G);
+            top += h + L.g;
         }
     }
 
@@ -278,7 +275,7 @@ final class KbdRenderer {
 
         int mainColor = inverse ? keyColor : textColor;
         int dimColor = subColor;
-        float size = L.s(KbdLayout.S);
+        float size = L.S;
         float w = rect[2] - rect[0];
 
         if (sliding) {
@@ -286,14 +283,16 @@ final class KbdRenderer {
                     ? keyUpText(app, key) : keyDownText(app, key);
             if (!label.isEmpty()) {
                 sink.text(label, (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2,
-                        size, mainColor, true, w - L.s(4));
+                        size, mainColor, true, w - L.g);
             }
             return;
         }
 
-        String main = keyMainText(app, key);
-        String up = keyUpText(app, key);
-        String down = keyDownText(app, key);
+        String main = key.kind == KbdData.Kind.MODIFIER
+                ? modifierLabel(app, key, w, L.S)
+                : keyMainText(app, key);
+        String up = fitSubLabel(keyUpText(app, key), w, L.S, L.g);
+        String down = fitSubLabel(keyDownText(app, key), w, L.S, L.g);
         boolean single = up.isEmpty() && down.isEmpty();
 
         if (single) {
@@ -304,17 +303,51 @@ final class KbdRenderer {
                     && pressed.pressed;
             if (!pressingNow) {
                 if (!up.isEmpty()) {
-                    sink.text(up, (rect[0] + rect[2]) / 2, rect[1] + L.s(16),
-                            size, dimColor, true, w - L.s(4));
+                    sink.text(up, (rect[0] + rect[2]) / 2, rect[1] + L.S / 2f,
+                            size, dimColor, true, w - L.g);
                 }
                 if (!down.isEmpty()) {
-                    sink.text(down, (rect[0] + rect[2]) / 2, rect[1] + L.s(88),
-                            size, dimColor, true, w - L.s(4));
+                    sink.text(down, (rect[0] + rect[2]) / 2,
+                            rect[1] + L.keyH - L.S / 2f,
+                            size, dimColor, true, w - L.g);
                 }
             }
-            sink.text(main, (rect[0] + rect[2]) / 2, rect[1] + L.s(52),
+            sink.text(main, (rect[0] + rect[2]) / 2, rect[1] + L.keyH / 2f,
                     size, mainColor, true, w);
         }
+    }
+
+    /** Tab/Esc 放不下时缩成 Ta/Es。 */
+    private static String fitSubLabel(String label, float keyW, int size, int gap) {
+        if ("Tab".equals(label) && KbdLayout.textWidth("Tab", size) > keyW - gap) {
+            return "Ta";
+        }
+        if ("Esc".equals(label) && KbdLayout.textWidth("Esc", size) > keyW - gap) {
+            return "Es";
+        }
+        return label;
+    }
+
+    /** 修饰键同宽，按最长标签统一决定是否用 Ct/Al/Sh。 */
+    private static String modifierLabel(KbdApp app, KbdData.Key key, float keyW, int size) {
+        String full = key.main.pick(app.chinese);
+        String shortLabel;
+        switch (key.mod) {
+            case "ctrl":
+                shortLabel = "Ct";
+                break;
+            case "alt":
+                shortLabel = "Al";
+                break;
+            case "shift":
+                shortLabel = "Sh";
+                break;
+            default:
+                return full;
+        }
+        int widest = Math.max(KbdLayout.textWidth("Ctrl", size),
+                Math.max(KbdLayout.textWidth("Alt", size), KbdLayout.textWidth("Shft", size)));
+        return widest >= keyW - 2 ? shortLabel : full;
     }
 
     private static boolean isActive(KbdApp app, KbdData.Key key) {
@@ -336,7 +369,7 @@ final class KbdRenderer {
             case LANG:
                 return app.symbols ? "符" : (app.chinese ? "中" : "英");
             case ENTER:
-                return app.composing() || app.commands
+                return app.composing()
                         ? (app.expanded ? "返回" : "展开") : "确认";
             case SPACE:
                 return app.escape ? "\\" : "空格";

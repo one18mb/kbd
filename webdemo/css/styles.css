@@ -92,6 +92,43 @@ body {
   letter-spacing: 0.04em;
 }
 
+.controls .ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.controls .ctl input,
+.controls .ctl select {
+  appearance: none;
+  border: 1px solid #333;
+  border-radius: 0;
+  background: #1d1d1d;
+  color: #ddd;
+  font: inherit;
+  padding: 4px 6px;
+  height: 26px;
+}
+
+.controls .ctl input {
+  width: 64px;
+}
+
+.controls .ctl select {
+  max-width: 150px;
+}
+
+.controls .readout {
+  margin-left: 4px;
+  padding: 3px 8px;
+  border: 1px solid #2a2a2a;
+  color: #9fd6c8;
+  font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
 .controls button {
   appearance: none;
   border: 1px solid #333;
@@ -124,6 +161,9 @@ body {
 }
 
 #device {
+  --s: 32px;
+  --g: 4px;
+  --pad: 2px;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -131,7 +171,7 @@ body {
   transform: translate(-50%, -50%) scale(1);
   overflow: hidden;
   background: var(--screen-bg);
-  border-radius: 16px;
+  border-radius: calc(var(--s) * 0.5);
   box-shadow: 0 0 0 1px #1a1a1a, 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
@@ -154,13 +194,13 @@ body {
 }
 
 .app-header {
-  flex: 0 0 56px;
+  flex: 0 0 calc(var(--s) * 1.75);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 calc(var(--s) * 0.625);
   color: var(--sub-text);
   font-family: 'Unifont', monospace;
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1;
   -webkit-font-smoothing: none;
 }
@@ -169,9 +209,9 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 16px 20px 24px;
+  padding: calc(var(--s) * 0.5) calc(var(--s) * 0.625) calc(var(--s) * 0.75);
   font-family: 'Unifont', monospace;
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
@@ -182,7 +222,7 @@ body {
 
 #editor .caret {
   display: inline-block;
-  width: 2px;
+  width: max(1px, calc(var(--s) / 16));
   height: 1.1em;
   background: var(--text);
   vertical-align: -0.12em;
@@ -208,9 +248,9 @@ body {
   position: absolute;
   left: 0;
   right: auto;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + var(--g));
   width: 100%;
-  height: 32px;
+  height: var(--s);
   display: flex;
   align-items: center;
   background: transparent;
@@ -222,14 +262,14 @@ body {
 .pinyin-text {
   display: inline-block;
   max-width: 100%;
-  padding: 0 2px;
+  padding: 0 var(--pad);
   background: var(--bar-bg);
-  /* 向下填满拼音行与候选行之间的 4px 间隙，两块看起来连在一起 */
-  box-shadow: 0 4px 0 var(--bar-bg);
+  /* 向下填满拼音行与候选行之间的间隙，两块看起来连在一起 */
+  box-shadow: 0 var(--g) 0 var(--bar-bg);
   color: var(--text);
   font-family: 'Unifont', monospace;
-  font-size: 32px;
-  line-height: 32px;
+  font-size: var(--s);
+  line-height: var(--s);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -243,7 +283,7 @@ body {
   left: 0;
   top: 0;
   width: 100%;
-  height: 32px;
+  height: var(--s);
   background: var(--bar-bg);
   z-index: 2;
 }
@@ -280,7 +320,7 @@ body {
   padding: 0;
   margin: 0;
   font-family: 'Unifont', monospace;
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1;
   cursor: pointer;
   touch-action: none;
@@ -305,7 +345,7 @@ body {
   position: absolute;
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 calc(var(--s) * 0.25);
   background: transparent;
   pointer-events: none;
 }
@@ -318,23 +358,24 @@ body {
   background: var(--key-bg);
   color: var(--text);
   display: grid;
-  grid-template-rows: 32px 32px 32px;
-  row-gap: 4px;
+  grid-template-rows: var(--s) var(--s) var(--s);
+  row-gap: var(--g);
   place-items: center;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
   font-family: 'Unifont', monospace;
+  font-size: var(--s);
   -webkit-font-smoothing: none;
 }
 
 .key .up,
 .key .down {
   width: 100%;
-  padding: 0 2px;
+  padding: 0 var(--pad);
   text-align: center;
   color: var(--sub-text);
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -352,7 +393,7 @@ body {
   padding: 0;
   text-align: center;
   color: inherit;
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -379,7 +420,7 @@ body {
   width: 100%;
   padding: 0;
   text-align: center;
-  font-size: 32px;
+  font-size: var(--s);
   line-height: 1;
 }
 
