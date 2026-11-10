@@ -10,7 +10,7 @@ public interface EngineBridge {
 
     boolean isReady();
 
-    /** quanpin / xiaohe / ziranma / ms / ziguang / abc / zhongwenzhixing / pinyinjiajia / gb */
+    /** quanpin / xiaohe / ziranma / abc / zhongwenzhixing / gb */
     void setScheme(String scheme);
 
     void input(char key);

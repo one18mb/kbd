@@ -13,7 +13,7 @@ NINJA=$ANDROID_SDK_ROOT/cmake/3.22.1/bin/ninja
 
 if [ ! -x "$CMAKE" ]; then
     echo "缺少 CMake 3.22.1：$CMAKE" >&2
-    echo "先执行 docs/dev-env.md 第 3 节的 sdkmanager 安装命令。" >&2
+    echo "先执行 docs/development.md 第 1 节的环境准备命令。" >&2
     exit 1
 fi
 

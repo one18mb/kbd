@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>KBD 自适应原型</title>
   <link rel="preload" href="fonts/unifont.otf" as="font" type="font/otf" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=28">
+  <link rel="stylesheet" href="css/styles.css?v=29">
 </head>
 <body>
   <header class="controls" id="controls">
@@ -21,6 +21,12 @@
     </label>
     <label class="ctl">R (W/H)
       <input id="rInput" type="number" min="0.5" max="1" step="0.01">
+    </label>
+    <label class="ctl">b
+      <input id="bInput" type="number" min="0" max="200" step="1">
+    </label>
+    <label class="ctl">方案
+      <select id="schemeSelect"></select>
     </label>
     <label class="ctl">模式
       <select id="modeSelect">
@@ -54,10 +60,10 @@
 
   <section class="event-log hidden" id="eventLog"></section>
 
-  <script src="js/data.js?v=28"></script>
-  <script src="js/layout.js?v=28"></script>
-  <script src="js/view.js?v=28"></script>
-  <script src="js/input.js?v=28"></script>
-  <script src="js/app.js?v=28"></script>
+  <script src="js/data.js?v=29"></script>
+  <script src="js/layout.js?v=29"></script>
+  <script src="js/view.js?v=29"></script>
+  <script src="js/input.js?v=29"></script>
+  <script src="js/app.js?v=29"></script>
 </body>
 </html>

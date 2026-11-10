@@ -288,7 +288,7 @@ final class KbdRenderer {
             return;
         }
 
-        boolean compact = compactLabels(L);
+        boolean compact = L.compactLabels();
         String main = key.kind == KbdData.Kind.MODIFIER
                 ? modifierLabel(app, key, compact)
                 : keyMainText(app, key);
@@ -316,19 +316,6 @@ final class KbdRenderer {
             sink.text(main, (rect[0] + rect[2]) / 2, rect[1] + L.keyH / 2f,
                     size, mainColor, true, w);
         }
-    }
-
-    /**
-     * 短标签统一开关：修饰键或 Tab/Esc 任一放不下，就一起用 Ct/Al/Sh + Ta/Es。
-     */
-    static boolean compactLabels(KbdLayout L) {
-        int modKeyW = L.landscape ? L.outerW : L.k;
-        int widest = Math.max(KbdLayout.textWidth("Ctrl", L.S),
-                Math.max(KbdLayout.textWidth("Alt", L.S), KbdLayout.textWidth("Shft", L.S)));
-        boolean modShort = widest >= modKeyW - 2;
-        boolean subShort = KbdLayout.textWidth("Tab", L.S) > L.k - L.g
-                || KbdLayout.textWidth("Esc", L.S) > L.k - L.g;
-        return modShort || subShort;
     }
 
     /** Tab/Esc 在紧凑模式下缩成 Ta/Es。 */

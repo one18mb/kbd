@@ -329,10 +329,16 @@ body {
 }
 
 .cand-cell .cand-text {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.cand-cell .cand-line {
+  display: block;
   white-space: nowrap;
 }
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 # 宿主端验收：
-#   1) ParityTests   —— 动作真值表断言（docs/kbd-parity.md 第 2 节）
+#   1) ParityTests   —— 动作断言（docs/behavior.md）
 #   2) LayoutPreview —— 几何/字体断言 + 输出 PNG（docs/preview/）
 set -e
 

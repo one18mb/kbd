@@ -23,17 +23,11 @@
 | --- | --- |
 | ![768x1024](docs/preview/20-adaptive-768x1024.png) | ![800x800](docs/preview/21-adaptive-800x800.png) |
 
-## 原型
+## 在线原型
 
-`webdemo/` 是可交互的屏幕自适应原型，用于在浏览器里调 `W/H`、`R`、主题和尺寸预设：
+**https://one18mb.github.io/kbd/**
 
-![webdemo](docs/preview/webdemo-portrait.png)
-
-```sh
-cd webdemo
-python3 -m http.server 8765
-# 打开 http://127.0.0.1:8765/
-```
+`webdemo/` 是纯静态的屏幕自适应原型，由 GitHub Actions 部署到 Pages。可调 `W/H/R/b`、主题、方案和尺寸预设；候选用 mock 数据，不运行 libime。本地运行方式见 [docs/development.md](docs/development.md)。
 
 ## 安装
 
@@ -59,7 +53,7 @@ python3 -m http.server 8765
 
 ## 构建
 
-第三方源码与词典数据不在仓库中，按 [docs/dev-env.md](docs/dev-env.md) 准备：
+第三方源码与词典数据不在仓库中，按 [docs/development.md](docs/development.md) 准备：
 
 ```sh
 . scripts/env.sh
@@ -79,16 +73,16 @@ gradle :app:assembleRelease
 | --- | --- |
 | `android/app` | 五层前端（data/layout/view/input/app）+ Android 适配 |
 | `android/engine` | libime JNI 封装、自学习/上文、宿主联调程序 |
-| `webdemo` | 自适应几何原型（真值来源） |
-| `docs` | 真值表、后端设计、自适应规则、开发环境 |
+| `webdemo` | 屏幕自适应在线原型（视觉/交互 + mock 候选） |
+| `docs` | 几何、行为、引擎、开发与发布 |
 | `scripts` | 宿主端断言、预览渲染、数据生成、构建辅助 |
 
 ## 文档
 
-- [屏幕自适应几何规则](docs/kbd-adaptive.md)
-- [前端真值表](docs/kbd-parity.md)
-- [后端设计](docs/kbd-backend.md)
-- [开发环境](docs/dev-env.md)
+- [几何规则](docs/geometry.md)：模式、变量、进位、横屏、候选、短标签
+- [行为规则](docs/behavior.md)：状态机、手势、命令、编辑流程
+- [引擎](docs/engine.md)：libime、方案、A+B、JNI
+- [开发与发布](docs/development.md)：环境、构建、测试、Pages、签名
 
 ## 许可证
 

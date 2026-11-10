@@ -179,9 +179,17 @@
 
   const escapeCommands = {
     n: { label: '换行', type: 'text', value: '\n' },
-    t: { label: '制表', type: 'text', value: '\t' },
-    s: { label: '设置', type: 'action', value: 'settings' },
-    j: { label: '简繁', type: 'action', value: 'variant' }
+    t: { label: '制表', type: 'text', value: '\t' }
+  };
+
+  // 只保留 26 键双拼；与 Android KbdData.SCHEMES 一致。
+  const schemes = {
+    quanpin: '全拼',
+    xiaohe: '小鹤双拼',
+    ziranma: '自然码',
+    abc: '智能ABC',
+    zhongwenzhixing: '中文之星',
+    gb: '国标双拼'
   };
 
   // 符号模式排除中英文模式已经能打出的符号：
@@ -214,6 +222,7 @@
     landRight: landRight,
     pinyin: pinyin,
     symbols: symbolsFiltered,
-    escapeCommands: escapeCommands
+    escapeCommands: escapeCommands,
+    schemes: schemes
   };
 })();

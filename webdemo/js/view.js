@@ -33,7 +33,7 @@
       'keyboard', 'controls', 'themeBtn',
       'demoBtn', 'symbolBtn', 'escapeBtn', 'showKbdBtn',
       'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog',
-      'presetSelect', 'wInput', 'hInput', 'rInput',
+      'presetSelect', 'wInput', 'hInput', 'rInput', 'bInput', 'schemeSelect',
       'modeSelect', 'layoutReadout'
     ].forEach(function (id) { els[id] = $(id); });
   }
@@ -420,8 +420,8 @@
 
   // ---------- 候选与拼音 ----------
 
-  function makeCandCell(parent, text, x, y, w, h) {
-    if (!parent || !text) return null;
+  function makeCandCell(parent, lines, x, y, w, h, index) {
+    if (!parent || !lines || !lines.length) return null;
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'cand-cell';
@@ -429,14 +429,24 @@
     b.style.top = y + 'px';
     b.style.width = w + 'px';
     b.style.height = h + 'px';
+    b.dataset.index = index == null ? '' : index;
     var span = document.createElement('span');
     span.className = 'cand-text';
-    span.textContent = text;
+    var S = metrics.S, g = metrics.g;
+    lines.forEach(function (line, i) {
+      var el = document.createElement('span');
+      el.className = 'cand-line';
+      el.style.height = S + 'px';
+      el.style.lineHeight = S + 'px';
+      if (i > 0) el.style.marginTop = g + 'px';
+      el.textContent = line;
+      span.appendChild(el);
+    });
     b.appendChild(span);
-    b.setAttribute('aria-label', '候选 ' + text);
+    b.setAttribute('aria-label', '候选 ' + lines.join(''));
     b.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      handlers.onCandidate(text);
+      handlers.onCandidate(lines.join(''), index);
     });
     parent.appendChild(b);
     return b;
@@ -454,10 +464,16 @@
     var m = metrics;
     bar.innerHTML = '';
     if (!model.composing) return;
-    for (var i = 0; i < m.expCols; i++) {
-      makeCandCell(bar, model.candidates[i],
-        m.candSide + i * (m.candCellW + m.candGap), 0, m.candCellW, m.candH);
-    }
+    var rows = L.candidateRows(model.candidates, 10, m);
+    if (!rows.length) return;
+    var row = rows[Math.min(model.candidateRow || 0, rows.length - 1)];
+    var x = m.candSide;
+    row.items.forEach(function (item) {
+      var lines = L.candLines(model.candidates[item.index], 10, m);
+      var w = L.candCellBase(item.keys, m);
+      makeCandCell(bar, [lines[0]], x, 0, w, m.candH, item.index);
+      x += w + m.g;
+    });
   }
 
   function renderLandscapePanel(model) {
@@ -465,12 +481,21 @@
     var m = metrics;
     panel.innerHTML = '';
     if (!model.composing) return;
-    for (var r = 0; r < m.panelRows; r++) {
-      for (var c = 0; c < m.panelCols; c++) {
-        var idx = r * m.panelCols + c;
-        makeCandCell(panel, model.candidates[idx],
-          c * (m.panelCellW + m.g), m.panelRowY[r], m.panelCellW, m.panelCellH);
-      }
+    var rows = L.candidateRows(model.candidates, m.p, m);
+    var start = Math.min(model.candidateRow || 0, Math.max(0, rows.length - 1));
+    var top = 0;
+    for (var ri = start; ri < rows.length; ri++) {
+      var row = rows[ri];
+      var h = L.candRowHeight(row.slots, m);
+      if (top + h > m.panelH + 0.5) break;
+      var x = 0;
+      row.items.forEach(function (item) {
+        var lines = L.candLines(model.candidates[item.index], m.p, m);
+        var w = L.candCellBase(item.keys, m);
+        makeCandCell(panel, lines, x, top, w, h, item.index);
+        x += w + m.g;
+      });
+      top += h + m.g;
     }
   }
 
@@ -487,15 +512,24 @@
     bg.style.height = m.expH + 'px';
     panel.appendChild(bg);
 
-    var offset = model.orientation === 'portrait' ? m.expCols : 0;
-    var x0 = model.orientation === 'portrait' ? m.expSide : 0;
-    for (var r = 0; r < m.expRows; r++) {
-      for (var c = 0; c < m.expCols; c++) {
-        var idx = offset + r * m.expCols + c;
-        var y = m.expRowY ? m.expRowY[r] : r * (m.expCellH + m.g);
-        makeCandCell(panel, model.candidates[idx],
-          x0 + c * (m.expCellW + m.g), y, m.expCellW, m.expCellH);
-      }
+    var portrait = model.orientation === 'portrait';
+    var rowKeys = portrait ? 10 : m.p;
+    var rows = L.candidateRows(model.candidates, rowKeys, m);
+    var start = portrait ? (model.candidateRow || 0) + 1 : (model.candidateRow || 0);
+    var x0 = portrait ? m.expSide : 0;
+    var top = 0;
+    for (var ri = start; ri < rows.length; ri++) {
+      var row = rows[ri];
+      var h = L.candRowHeight(row.slots, m);
+      if (top + h > m.expH + 0.5) break;
+      var x = x0;
+      row.items.forEach(function (item) {
+        var lines = L.candLines(model.candidates[item.index], rowKeys, m);
+        var w = L.candCellBase(item.keys, m);
+        makeCandCell(panel, lines, x, top, w, h, item.index);
+        x += w + m.g;
+      });
+      top += h + m.g;
     }
   }
 
@@ -593,6 +627,10 @@
   function updateControlText(model) {
     els.showKbdBtn.textContent = model.keyboardVisible ? '收起键盘' : '显示键盘';
     els.logBtn.textContent = model.logOpen ? '隐藏日志' : '事件日志';
+    if (els.schemeSelect && D.schemes && D.schemes[model.scheme]) {
+      els.schemeSelect.value = model.scheme;
+    }
+    if (els.bInput) els.bInput.value = model.b;
     if (els.layoutReadout && metrics) {
       var m = metrics;
       var flags = [];
@@ -607,6 +645,8 @@
         ' | 应用 ' + (m.H - m.kbH) +
         ' | W/H=' + m.ratio.toFixed(2) + ' R=' + m.R.toFixed(2) +
         ' | ' + m.modeReason +
+        ' | 方案 ' + (D.schemes[model.scheme] || model.scheme) +
+        ' ' + (model.variant === 't' ? '繁' : '简') + ' b=' + model.b +
         (flags.length ? ' | ' + flags.join('，') : '');
     }
   }

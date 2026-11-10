@@ -446,6 +446,17 @@ final class KbdLayout {
         return x >= r[0] && x < r[2] && y >= r[1] && y < r[3];
     }
 
+    /** 修饰键或 Tab/Esc 任一放不下，就一起用 Ct/Al/Sh + Ta/Es。 */
+    boolean compactLabels() {
+        int modKeyW = landscape ? outerW : k;
+        int widest = Math.max(textWidth("Ctrl", S),
+                Math.max(textWidth("Alt", S), textWidth("Shft", S)));
+        boolean modShort = widest >= modKeyW - 2;
+        boolean subShort = textWidth("Tab", S) > k - g
+                || textWidth("Esc", S) > k - g;
+        return modShort || subShort;
+    }
+
     // ---------- 候选 ----------
 
     int candCellBase(int keys) {

@@ -19,4 +19,4 @@ KBD 以 GPL-3.0-or-later 发布。以下组件随源码或构建产物使用，�
 
 - libime / fcitx5 以静态库形式链接进 `libkbd_engine.so`。项目整体按 GPL-3.0-or-later 发布，满足 LGPL-2.1-or-later 的源码与重链接要求。
 - GNU Unifont 的字体嵌入例外允许把字体嵌入文档/应用；本项目仍按 GPL-3.0-or-later 整体发布。
-- 第三方源码与生成的词典/模型不提交到仓库，按 `docs/dev-env.md` 下载与生成。
+- 第三方源码与生成的词典/模型不提交到仓库，按 `docs/development.md` 下载与生成。

@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 动作真值表测试（对应 docs/kbd-parity.md 第 2 节）。
+ * 动作断言（对应 docs/behavior.md）。
  * 纯 Java，不依赖 Android、不依赖引擎/native。
  */
 public final class ParityTests {

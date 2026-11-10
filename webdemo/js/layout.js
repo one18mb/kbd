@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  // 自适应布局：输入窗口 (W,H)、应用最小高度 h_a、底部安全区 b、比例阈值 R。
+  // 自适应布局：输入窗口 (W,H)、底部安全区 b、比例阈值 R。
   // 输出键盘模式与几何，不再读取系统方向 API。
   //
   // 约定：
@@ -17,7 +17,7 @@
 
   // R 是屏幕 W/H 阈值（<1）：W/H > R 优先横屏，W/H ≤ R 竖屏。
   // R=0.75：3:4 落入竖屏，4:5 及更宽走横屏。
-  var DEFAULTS = { W: 720, H: 1604, hA: 0, b: 32, R: 0.75 };
+  var DEFAULTS = { W: 720, H: 1604, b: 32, R: 0.75 };
 
   // 键盘自身 W/H 的建议区间，用于检查模式是否选得合理。
   var KB_RATIO = {
@@ -51,11 +51,11 @@
   }
 
   // 竖屏：宽度级 n 先定，再由 H 向下压。
-  function portraitMaxN(W, H, hA, b) {
+  function portraitMaxN(W, H, b) {
     var n = portraitStage(W);
     while (n > 1) {
       var gs = gStart(n);
-      if (208 * n + 12 * gs + b + hA <= H) break;
+      if (208 * n + 12 * gs + b <= H) break;
       n--;
     }
     return n;
@@ -66,21 +66,21 @@
     return Math.max(1, Math.ceil(Math.min(W, H) / 360));
   }
 
-  function landscapeMaxN(W, H, hA) {
+  function landscapeMaxN(W, H) {
     var n = landscapeShortN(W, H);
     while (n > 1) {
       var gs = gStart(n);
-      if (W >= wStartL(n) && 144 * n + 8 * gs + hA <= H) break;
+      if (W >= wStartL(n) && 144 * n + 8 * gs <= H) break;
       n--;
     }
     return n;
   }
 
-  function solvePortrait(W, H, hA, b, n) {
+  function solvePortrait(W, H, b, n) {
     var f = 16 * n;
     var gs = gStart(n);
     var gc = gCap(n);
-    var gHeight = Math.floor((H - hA - b - 208 * n) / 12);
+    var gHeight = Math.floor((H - b - 208 * n) / 12);
     var gMax = Math.min(gc, Math.max(gs, gHeight));
     var ts = tStart(n);
     var tEnd = tCap(n);
@@ -115,7 +115,7 @@
 
     return {
       orientation: 'portrait',
-      W: W, H: H, b: b, hA: hA,
+      W: W, H: H, b: b,
       n: n, S: f, t: t, K: K, g: g, c: c, e: e, m: m,
       tCap: tEnd, tBeyond: t > tEnd,
       gCap: gc, gCappedByHeight: gMax < gc,
@@ -134,11 +134,11 @@
     };
   }
 
-  function solveLandscape(W, H, hA, n) {
+  function solveLandscape(W, H, n) {
     var f = 16 * n;
     var gs = gStart(n);
     var gc = gCap(n);
-    var gHeight = Math.floor((H - hA - 144 * n) / 8);
+    var gHeight = Math.floor((H - 144 * n) / 8);
     var gMax = Math.min(gc, Math.max(gs, gHeight));
     var ts = tStart(n);
     var tEnd = tCap(n);
@@ -194,7 +194,7 @@
 
     return {
       orientation: 'landscape',
-      W: W, H: H, b: 0, hA: hA,
+      W: W, H: H, b: 0,
       n: n, S: f, t: t, K: K, g: g, c: g + e, e: e, m: m,
       tCap: tEnd, tBeyond: t > tEnd,
       gCap: gc, gCappedByHeight: gMax < gc,
@@ -218,12 +218,12 @@
     };
   }
 
-  function decideMode(W, H, hA, b, R, override) {
+  function decideMode(W, H, b, R, override) {
     if (override === 'portrait' || override === 'landscape') {
       return { mode: override, reason: '手动' };
     }
-    var pOK = W >= 160 && H >= 208 + b + hA;
-    var lOK = W >= 256 && H >= 144 + hA;
+    var pOK = W >= 160 && H >= 208 + b;
+    var lOK = W >= 256 && H >= 144;
     if (!pOK && !lOK) {
       return { mode: W >= H ? 'landscape' : 'portrait', reason: '低于最小尺寸' };
     }
@@ -239,19 +239,18 @@
     var o = input || {};
     var W = Math.max(1, Math.round(o.W || DEFAULTS.W));
     var H = Math.max(1, Math.round(o.H || DEFAULTS.H));
-    var hA = Math.max(0, Math.round(o.hA == null ? DEFAULTS.hA : o.hA));
     var b = Math.max(0, Math.round(o.b == null ? DEFAULTS.b : o.b));
     var R = o.R == null ? DEFAULTS.R : Number(o.R);
     if (!(R > 0.2 && R <= 1)) R = DEFAULTS.R;
 
-    var decided = decideMode(W, H, hA, b, R, o.mode || 'auto');
+    var decided = decideMode(W, H, b, R, o.mode || 'auto');
     var metrics;
     if (decided.mode === 'portrait') {
-      var np = portraitMaxN(W, H, hA, b);
-      metrics = solvePortrait(W, H, hA, b, np);
+      var np = portraitMaxN(W, H, b);
+      metrics = solvePortrait(W, H, b, np);
     } else {
-      var nl = landscapeMaxN(W, H, hA);
-      metrics = solveLandscape(W, H, hA, nl);
+      var nl = landscapeMaxN(W, H);
+      metrics = solveLandscape(W, H, nl);
     }
     metrics.modeReason = decided.reason;
     metrics.ratio = W / H;
@@ -262,12 +261,106 @@
       ? KB_RATIO.portrait : KB_RATIO.landscape;
     metrics.kbRatioOK = metrics.kbRatio >= metrics.kbRatioRange[0]
       && metrics.kbRatio <= metrics.kbRatioRange[1];
-    metrics.overflow = metrics.kbH + hA > H || metrics.kbW > W;
+    metrics.overflow = metrics.kbH > H || metrics.kbW > W;
+    metrics.compactLabels = compactLabels(metrics);
     return metrics;
   }
 
-  window.KBD = window.KBD || {};
-  window.KBD.layout = {
+  // ---------- 候选 ----------
+
+  function fullWidth(c) {
+    var code = c.charCodeAt(0);
+    return code >= 0x1100 && (code <= 0x115F || code === 0x2329 || code === 0x232A
+      || (code >= 0x2E80 && code <= 0xA4CF && code !== 0x303F)
+      || (code >= 0xAC00 && code <= 0xD7A3)
+      || (code >= 0xF900 && code <= 0xFAFF)
+      || (code >= 0xFE30 && code <= 0xFE6F)
+      || (code >= 0xFF00 && code <= 0xFF60)
+      || (code >= 0xFFE0 && code <= 0xFFE6));
+  }
+
+  function textWidth(text, size) {
+    var w = 0;
+    for (var i = 0; i < text.length; i++) w += fullWidth(text[i]) ? size : size / 2;
+    return w;
+  }
+
+  function compactLabels(m) {
+    var modKeyW = m.orientation === 'landscape' ? m.outerW : m.K;
+    var widest = Math.max(textWidth('Ctrl', m.S),
+      Math.max(textWidth('Alt', m.S), textWidth('Shft', m.S)));
+    var modShort = widest >= modKeyW - 2;
+    var subShort = textWidth('Tab', m.S) > m.K - m.g
+      || textWidth('Esc', m.S) > m.K - m.g;
+    return modShort || subShort;
+  }
+
+  function candCellBase(keys, m) {
+    return keys * m.K + (keys - 1) * m.g;
+  }
+
+  function candKeys(text, rowKeys, m) {
+    var width = textWidth(text, m.S) + 8;
+    for (var keys = 2; keys <= rowKeys; keys += 2) {
+      if (width <= candCellBase(keys, m)) return keys;
+    }
+    return rowKeys;
+  }
+
+  function candLines(text, rowKeys, m) {
+    var max = candCellBase(rowKeys, m) - 8;
+    if (textWidth(text, m.S) <= max) return [text];
+    var lines = [];
+    var line = '';
+    var width = 0;
+    for (var i = 0; i < text.length; i++) {
+      var cw = fullWidth(text[i]) ? m.S : m.S / 2;
+      if (width + cw > max && line.length > 0) {
+        lines.push(line);
+        line = '';
+        width = 0;
+      }
+      line += text[i];
+      width += cw;
+    }
+    if (line.length) lines.push(line);
+    return lines;
+  }
+
+  function candidateRows(candidates, rowKeys, m) {
+    var rows = [];
+    var row = null;
+    for (var i = 0; i < candidates.length; i++) {
+      var keys = candKeys(candidates[i], rowKeys, m);
+      var slots = candLines(candidates[i], rowKeys, m).length;
+      if (!row || row.keys + keys > rowKeys) {
+        row = { items: [], keys: 0, slots: 0 };
+        rows.push(row);
+      }
+      row.items.push({ index: i, keys: keys });
+      row.keys += keys;
+      row.slots = Math.max(row.slots, slots);
+    }
+    return rows;
+  }
+
+  function candRowHeight(slots, m) {
+    return slots * m.S + (slots - 1) * m.g;
+  }
+
+  function rowsFitting(rows, panelH, m) {
+    var used = 0;
+    var count = 0;
+    for (var i = rows.length - 1; i >= 0; i--) {
+      var need = candRowHeight(rows[i].slots, m) + (count > 0 ? m.g : 0);
+      if (used + need > panelH) break;
+      used += need;
+      count++;
+    }
+    return count;
+  }
+
+  var api = {
     DEFAULTS: DEFAULTS,
     KB_RATIO: KB_RATIO,
     PRESETS: PRESETS,
@@ -276,6 +369,22 @@
     solvePortrait: solvePortrait,
     solveLandscape: solveLandscape,
     portraitMaxN: portraitMaxN,
-    landscapeMaxN: landscapeMaxN
+    landscapeMaxN: landscapeMaxN,
+    textWidth: textWidth,
+    compactLabels: compactLabels,
+    candCellBase: candCellBase,
+    candKeys: candKeys,
+    candLines: candLines,
+    candidateRows: candidateRows,
+    candRowHeight: candRowHeight,
+    rowsFitting: rowsFitting
   };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (typeof window !== 'undefined') {
+    window.KBD = window.KBD || {};
+    window.KBD.layout = api;
+  }
 })();

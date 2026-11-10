@@ -4,10 +4,8 @@
   // 输入层：只识别手势（点按/滑动/长按/连发/符号翻页），
   // 把手势翻译成语义意图交给 app，不直接改业务状态。
 
-  var LONG_PRESS_MS = 500;
+  var LONG_PRESS_MS = 400;
   var REPEAT_MS = 60;
-  var SLIDE_ENTER = 25;
-  var SLIDE_EXIT = 12;
   var SWIPE_PX = 30;
 
   var D = window.KBD;
@@ -18,6 +16,7 @@
     var toLogicalY = opts.toLogicalY;
     var getSlideLabel = opts.getSlideLabel;
     var allowPageSwipe = opts.allowPageSwipe;
+    var slideThresholds = opts.slideThresholds;
     var H = opts.handlers;
     var sessions = new Map();
 
@@ -39,6 +38,7 @@
       e.preventDefault();
       try { root.setPointerCapture(e.pointerId); } catch (err) {}
 
+      var th = slideThresholds ? slideThresholds() : { enter: 25, exit: 12 };
       var session = {
         pointerId: e.pointerId,
         keyEl: key || root,
@@ -47,6 +47,8 @@
         pageSwipe: !!symbol || pageOnly,
         startY: toLogicalY(e.clientY),
         startX: toLogicalX(e.clientX),
+        enter: th.enter,
+        exit: th.exit,
         mode: (symbol || pageOnly) ? 'symbol-pending' : 'pending',
         dir: null,
         timer: null,
@@ -98,15 +100,15 @@
       var dy = y - s.startY;
 
       if (s.mode === 'pending') {
-        if (dy <= -SLIDE_ENTER) setSlide(s, 'up');
-        else if (dy >= SLIDE_ENTER) setSlide(s, 'down');
+        if (dy <= -s.enter) setSlide(s, 'up');
+        else if (dy >= s.enter) setSlide(s, 'down');
         return;
       }
       if (s.mode === 'slide') {
-        if (s.dir === 'up' && dy > -SLIDE_EXIT) clearSlide(s);
-        else if (s.dir === 'down' && dy < SLIDE_EXIT) clearSlide(s);
-        else if (s.dir === 'up' && dy >= SLIDE_ENTER) setSlide(s, 'down');
-        else if (s.dir === 'down' && dy <= -SLIDE_ENTER) setSlide(s, 'up');
+        if (s.dir === 'up' && dy > -s.exit) clearSlide(s);
+        else if (s.dir === 'down' && dy < s.exit) clearSlide(s);
+        else if (s.dir === 'up' && dy >= s.enter) setSlide(s, 'down');
+        else if (s.dir === 'down' && dy <= -s.enter) setSlide(s, 'up');
       }
     }
 
@@ -174,8 +176,17 @@
       if (s) cancelSession(s);
     }
 
+    function onWheel(e) {
+      if (!H.scrollCandidates) return;
+      var t = e.target.closest('.candidate-bar, .candidate-panel, .expanded-panel');
+      if (!t) return;
+      e.preventDefault();
+      H.scrollCandidates(e.deltaY > 0 ? 1 : -1);
+    }
+
     function attach() {
       root.addEventListener('pointerdown', onPointerDown, { passive: false });
+      root.addEventListener('wheel', onWheel, { passive: false });
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onPointerCancel);

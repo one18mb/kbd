@@ -7,7 +7,7 @@
   var L = D.layout;
   var V = D.view;
 
-  var MAX_ESCAPE = 16;
+  var MAX_ESCAPE = 24;
 
   var state = {
     // 屏幕输入：模式由 layout 计算，不再读系统方向。
@@ -32,6 +32,9 @@
     candidates: [],
     preedit: '',
     expanded: false,
+    candidateRow: 0,
+    scheme: 'quanpin',
+    variant: 's',
     text: '',
     cursor: 0,
     keyboardVisible: true,
@@ -132,16 +135,43 @@
     return { pre: raw, c: [raw] };
   }
 
+  function candidateRowKeys() {
+    return metrics && metrics.orientation === 'landscape' ? metrics.p : 10;
+  }
+
+  function candidateMaxRow() {
+    if (!metrics || !state.candidates.length) return 0;
+    var rows = L.candidateRows(state.candidates, candidateRowKeys(), metrics);
+    if (!rows.length) return 0;
+    var fit = metrics.orientation === 'portrait'
+      ? L.rowsFitting(rows, metrics.expH, metrics)
+      : L.rowsFitting(rows, metrics.kbH, metrics);
+    var max = metrics.orientation === 'portrait'
+      ? rows.length - 1 - fit
+      : rows.length - fit;
+    return Math.max(0, max);
+  }
+
+  function scrollCandidates(delta) {
+    if (!state.composing || !delta) return;
+    var next = Math.max(0, Math.min(candidateMaxRow(), state.candidateRow + delta));
+    if (next === state.candidateRow) return;
+    state.candidateRow = next;
+    refreshCandidates();
+  }
+
   function updateComposition() {
     var wasExpanded = state.expanded;
     if (!state.composing) {
       state.preedit = '';
       state.candidates = [];
       state.expanded = false;
+      state.candidateRow = 0;
     } else {
       var r = lookupPinyin(state.composing);
       state.preedit = r.pre;
       state.candidates = r.c;
+      state.candidateRow = Math.min(state.candidateRow, candidateMaxRow());
     }
     if (wasExpanded && !state.composing) {
       rebuildAll();
@@ -158,6 +188,7 @@
     state.preedit = '';
     state.candidates = [];
     state.expanded = false;
+    state.candidateRow = 0;
     if (wasExpanded) {
       rebuildAll();
       return;
@@ -272,20 +303,45 @@
 
   function escapePreview() {
     var body = state.escapeBuffer.slice(1);
+    if (body.normalize) body = body.normalize('NFKC');
     if (body === '') {
-      return { help: true, text: 'n 换行   t 制表   u Unicode   s 设置   j 简繁' };
+      return {
+        help: true,
+        text: 'n 换行   t 制表   u Unicode   sk=dark|light|auto   st=s|t   sb=数字   zh=方案'
+      };
     }
     var cmd = D.escapeCommands[body];
     if (cmd) return { valid: true, text: '→ ' + cmd.label, cmd: cmd };
 
-    var code = null;
+    var m = /^sb=(\d{1,3})$/.exec(body);
+    if (m) {
+      return { valid: true, bottomSafe: Math.min(200, parseInt(m[1], 10)), text: '→ b=' + Math.min(200, parseInt(m[1], 10)) };
+    }
+    if (body === 'sb=auto') return { valid: true, bottomSafe: 32, text: '→ b 跟随系统（原型 32）' };
+
+    m = /^zh=([A-Za-z]+)$/.exec(body);
+    if (m) {
+      var code = m[1].toLowerCase();
+      if (D.schemes[code]) return { valid: true, scheme: code, text: '→ 方案 ' + D.schemes[code] };
+      return { valid: false, text: '未知方案 ' + code };
+    }
+
+    m = /^sk=(dark|light|auto)$/.exec(body);
+    if (m) {
+      var label = m[1] === 'auto' ? '跟随系统' : (m[1] === 'dark' ? '深色' : '浅色');
+      return { valid: true, theme: m[1], text: '→ 皮肤 ' + label };
+    }
+    m = /^st=([st])$/.exec(body);
+    if (m) return { valid: true, variant: m[1], text: '→ ' + (m[1] === 't' ? '繁体' : '简体') };
+
+    var code2 = null;
     var m4 = /^u([0-9a-fA-F]{4})$/.exec(body);
     var mb = /^u\{([0-9a-fA-F]{1,6})\}$/.exec(body);
-    if (m4) code = parseInt(m4[1], 16);
-    else if (mb) code = parseInt(mb[1], 16);
-    if (code != null) {
-      if (code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)) {
-        var ch = String.fromCodePoint(code);
+    if (m4) code2 = parseInt(m4[1], 16);
+    else if (mb) code2 = parseInt(mb[1], 16);
+    if (code2 != null) {
+      if (code2 <= 0x10FFFF && !(code2 >= 0xD800 && code2 <= 0xDFFF)) {
+        var ch = String.fromCodePoint(code2);
         return { valid: true, text: '→ ' + ch, value: ch };
       }
       return { valid: false, text: '无效 Unicode' };
@@ -293,6 +349,15 @@
     if (/^u/i.test(body)) return { valid: false, text: 'Unicode 需要 4 位或 {1–6} 位十六进制' };
     if (body === '\\') return { valid: true, text: '→ \\', value: '\\' };
     return { valid: false, text: '未知转义' };
+  }
+
+  function persistSettings() {
+    try {
+      localStorage.setItem('kbd.theme', state.theme);
+      localStorage.setItem('kbd.scheme', state.scheme);
+      localStorage.setItem('kbd.variant', state.variant);
+      localStorage.setItem('kbd.b', String(state.b));
+    } catch (e) {}
   }
 
   function executeEscape() {
@@ -304,15 +369,30 @@
       logEvent('取消转义：' + pending);
       return;
     }
-    var cmd = info.cmd;
-    if (cmd) {
-      if (cmd.type === 'text') {
-        insertText(cmd.value);
+    if (info.bottomSafe != null) {
+      state.b = info.bottomSafe;
+      persistSettings();
+      rebuildAll();
+      logEvent('转义：' + info.text);
+    } else if (info.scheme) {
+      state.scheme = info.scheme;
+      persistSettings();
+      V.showToast('方案：' + D.schemes[state.scheme]);
+      logEvent('转义：' + info.text);
+    } else if (info.theme) {
+      state.theme = info.theme;
+      V.applyTheme(state);
+      persistSettings();
+      logEvent('转义：' + info.text);
+    } else if (info.variant) {
+      state.variant = info.variant;
+      persistSettings();
+      V.showToast(state.variant === 't' ? '繁体（原型占位）' : '简体');
+      logEvent('转义：' + info.text);
+    } else if (info.cmd) {
+      if (info.cmd.type === 'text') {
+        insertText(info.cmd.value);
         logEvent('转义：' + info.text);
-      } else if (cmd.value === 'settings') {
-        logEvent('转义：设置');
-      } else if (cmd.value === 'variant') {
-        logEvent('转义：简繁');
       }
     } else if (info.value != null) {
       insertText(info.value);
@@ -639,6 +719,58 @@
     });
   }
 
+  function populateSchemes() {
+    var sel = V.els.schemeSelect;
+    if (!sel) return;
+    sel.innerHTML = '';
+    Object.keys(D.schemes).forEach(function (code) {
+      var opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = D.schemes[code];
+      sel.appendChild(opt);
+    });
+    sel.value = state.scheme;
+  }
+
+  function loadSettings() {
+    try {
+      var t = localStorage.getItem('kbd.theme');
+      if (t === 'auto' || t === 'dark' || t === 'light') state.theme = t;
+      var s = localStorage.getItem('kbd.scheme');
+      if (s && D.schemes[s]) state.scheme = s;
+      var v = localStorage.getItem('kbd.variant');
+      if (v === 's' || v === 't') state.variant = v;
+      var b = parseInt(localStorage.getItem('kbd.b'), 10);
+      if (isFinite(b)) state.b = Math.max(0, Math.min(200, b));
+    } catch (e) {}
+  }
+
+  /** 可选 URL 参数：?w=..&h=..&r=..&b=..&theme=..&scheme=..&demo=nihao */
+  function applyQuery() {
+    var q;
+    try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var w = parseInt(q.get('w'), 10);
+    var h = parseInt(q.get('h'), 10);
+    var r = parseFloat(q.get('r'));
+    var b = parseInt(q.get('b'), 10);
+    var theme = q.get('theme');
+    var scheme = q.get('scheme');
+    var mode = q.get('mode');
+    var demo = q.get('demo');
+    if (isFinite(w)) state.W = Math.max(120, Math.min(4000, w));
+    if (isFinite(h)) state.H = Math.max(120, Math.min(4000, h));
+    if (isFinite(r)) state.ratio = Math.max(0.2, Math.min(1, r));
+    if (isFinite(b)) state.b = Math.max(0, Math.min(200, b));
+    if (theme === 'auto' || theme === 'dark' || theme === 'light') state.theme = theme;
+    if (scheme && D.schemes[scheme]) state.scheme = scheme;
+    if (mode === 'portrait' || mode === 'landscape' || mode === 'auto') state.modeOverride = mode;
+    if (demo) {
+      state.lang = 'zh';
+      state.layer = 'letters';
+      state.composing = demo;
+    }
+  }
+
   function bindLayoutControls() {
     var els = V.els;
     if (els.presetSelect) {
@@ -686,9 +818,30 @@
         applyScreen(findPresetLabel(state.W, state.H));
       });
     }
+
+    if (els.schemeSelect) {
+      els.schemeSelect.addEventListener('change', function () {
+        state.scheme = els.schemeSelect.value;
+        persistSettings();
+        V.showToast('方案：' + D.schemes[state.scheme]);
+        logEvent('方案：' + state.scheme);
+        V.updateControlText(state);
+      });
+    }
+
+    if (els.bInput) {
+      var commitB = function () {
+        var b = parseInt(els.bInput.value, 10);
+        if (!isFinite(b)) return;
+        state.b = Math.max(0, Math.min(200, b));
+        persistSettings();
+        applyScreen(findPresetLabel(state.W, state.H));
+      };
+      els.bInput.addEventListener('change', commitB);
+    }
   }
 
-  // 视口变化只影响画布缩放；键盘模式由 (W,H,h_a) 决定。
+  // 视口变化只影响画布缩放；键盘模式由 (W,H,b) 决定。
   function handleViewportChange() {
     V.fitStage();
   }
@@ -700,6 +853,7 @@
   function cycleTheme() {
     state.theme = state.theme === 'auto' ? 'dark' : (state.theme === 'dark' ? 'light' : 'auto');
     applyTheme();
+    persistSettings();
   }
 
   function demoNihao() {
@@ -709,6 +863,7 @@
     state.escapeBuffer = '\\';
     state.composing = 'nihao';
     state.expanded = false;
+    state.candidateRow = 0;
     rebuildAll();
     updateComposition();
     logEvent("演示：ni'hao");
@@ -727,6 +882,7 @@
     state.candidates = [];
     state.preedit = '';
     state.expanded = false;
+    state.candidateRow = 0;
     state.text = '';
     state.cursor = 0;
     rebuildAll();
@@ -771,6 +927,10 @@
       toLogicalY: V.toLogicalY,
       getSlideLabel: function (id, dir) { return V.slideLabel(state, id, dir); },
       allowPageSwipe: function () { return state.layer === 'symbols'; },
+      slideThresholds: function () {
+        var s = metrics ? metrics.S : 32;
+        return { enter: Math.max(1, s * 25 / 32), exit: Math.max(1, s * 12 / 32) };
+      },
       handlers: {
         tapKey: tapKey,
         longKey: longKey,
@@ -779,7 +939,8 @@
         emptySlide: function (def) { logEvent('空滑动：' + def.id); clearTempMods(); },
         symbolTap: tapSymbol,
         pageSwipe: flipSymbolPage,
-        markTap: markTap
+        markTap: markTap,
+        scrollCandidates: scrollCandidates
       }
     }).attach();
 
@@ -811,10 +972,14 @@
       },
       onCandidate: commitCandidate
     });
+    loadSettings();
+    applyQuery();
     populatePresets();
+    populateSchemes();
     bindControls();
     applyTheme();
     rebuildAll();
+    if (state.composing) updateComposition();
     syncLayoutControls(findPresetLabel(state.W, state.H));
     V.renderLog(logEntries, state.logOpen);
     logEvent('KBD 自适应原型启动');
