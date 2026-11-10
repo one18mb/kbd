@@ -313,6 +313,15 @@ public final class LayoutPreview {
                         && KbdLayout.textWidth("Tab", 32) <= 68 - 4,
                 "48px=" + KbdLayout.textWidth("Tab", 48)
                         + " 32px=" + KbdLayout.textWidth("Tab", 32));
+        ok &= check("短标签统一：720 全称 / 768 全短 / 800 横屏全短 / 1024 横屏全称",
+                !KbdRenderer.compactLabels(L)
+                        && KbdRenderer.compactLabels(threeFour)
+                        && KbdRenderer.compactLabels(square)
+                        && !KbdRenderer.compactLabels(new KbdLayout(1024, 768, 32)),
+                "720=" + KbdRenderer.compactLabels(L)
+                        + " 768=" + KbdRenderer.compactLabels(threeFour)
+                        + " 800=" + KbdRenderer.compactLabels(square)
+                        + " 1024=" + KbdRenderer.compactLabels(new KbdLayout(1024, 768, 32)));
 
         // 横屏（webdemo landscape）
         KbdLayout LL = new KbdLayout(1604, 720, 32);
@@ -364,8 +373,8 @@ public final class LayoutPreview {
                         && Math.round(LL.landSpaceRect()[3]) == 320,
                 "space=" + Math.round(LL.landSpaceRect()[1]) + ".."
                         + Math.round(LL.landSpaceRect()[3]));
-        ok &= check("横屏拼音浮层 x=588 宽 428",
-                LL.preeditLeft == 588 && LL.preeditWidth == 428,
+        ok &= check("横屏拼音浮层 q→p x=228 宽 1148",
+                LL.preeditLeft == 228 && LL.preeditWidth == 1148,
                 "x=" + LL.preeditLeft + " w=" + LL.preeditWidth);
         return ok;
     }

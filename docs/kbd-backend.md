@@ -1,4 +1,4 @@
-# KBD 输入法后端设计（v1.0）
+# KBD 输入法后端设计（v1.1）
 
 > 状态：M2.0 构建 spike 已通过（宿主机 + 鸿蒙 4.0 真机）；四项性能指标待测
 >
@@ -14,7 +14,7 @@
 
 目标：
 
-- 中文拼音输入 + 小鹤双拼，候选质量与响应速度满足日常聊天与笔记。
+- 中文拼音输入 + 全拼/26 键双拼，候选质量与响应速度满足日常聊天与笔记。
 - 720p / arm64-v8a 设备上冷启动、内存、包体可控。
 - Android 系统输入法（`InputMethodService`），键盘视图自绘，不使用系统或第三方键盘 UI。
 
@@ -80,7 +80,7 @@ public interface EngineBridge {
     void load(String dataDir, String userDir); // 只读词典 + 可写用户数据
     boolean isReady();
 
-    void setScheme(String scheme);          // quanpin / xiaohe / ziranma / ms / ziguang / abc / zhongwenzhixing / pinyinjiajia / gb
+    void setScheme(String scheme);          // quanpin / xiaohe / ziranma / abc / zhongwenzhixing / gb
     void input(int keyCode);                // 字母/数字等字符键
     void backspace();
     State state(int candidateLimit);        // 当前预编辑 + 候选
@@ -133,22 +133,19 @@ public interface EngineBridge {
 
 待验证：libime 是否提供 `preedit()`；若不提供，预编辑由前端拼接原始按键。
 
-## 7. 输入方案（8 种双拼 + 全拼）
+## 7. 输入方案（26 键双拼 + 全拼）
 
-libime 1.1.17 的 `ShuangpinBuiltinProfile` 提供 **8 种内置双拼**：
+libime 1.1.17 的 `ShuangpinBuiltinProfile` 提供 8 种内置双拼，但 KBD 1.1 只暴露 **26 键方案**：
 
 | code | 方案 |
 | --- | --- |
 | `ziranma` | 自然码 |
-| `ms` | 微软双拼 |
-| `ziguang` | 紫光双拼 |
 | `abc` | 智能ABC |
 | `zhongwenzhixing` | 中文之星 |
-| `pinyinjiajia` | 拼音加加 |
 | `xiaohe` | 小鹤双拼 |
 | `gb` | 国标双拼 |
 
-另有 `quanpin` 全拼（`setUseShuangpin(false)`），共 9 种可选方案。默认 `quanpin`。
+另有 `quanpin` 全拼（`setUseShuangpin(false)`），共 6 种可选方案。默认 `quanpin`。微软/紫光/拼音加加使用非字母键，已移除。
 
 - 前端转义命令 `\zh=code` 切换方案；`KbdIme` 持久化到 `SharedPreferences("kbd")` 的 `scheme`。
 - `Engine::setScheme`：更新 profile；若已加载则重建 `PinyinContext`，清空当前组词，保留跨输入框上文。

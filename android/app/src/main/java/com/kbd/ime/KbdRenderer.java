@@ -288,11 +288,12 @@ final class KbdRenderer {
             return;
         }
 
+        boolean compact = compactLabels(L);
         String main = key.kind == KbdData.Kind.MODIFIER
-                ? modifierLabel(app, key, w, L.S)
+                ? modifierLabel(app, key, compact)
                 : keyMainText(app, key);
-        String up = fitSubLabel(keyUpText(app, key), w, L.S, L.g);
-        String down = fitSubLabel(keyDownText(app, key), w, L.S, L.g);
+        String up = fitSubLabel(keyUpText(app, key), compact);
+        String down = fitSubLabel(keyDownText(app, key), compact);
         boolean single = up.isEmpty() && down.isEmpty();
 
         if (single) {
@@ -317,19 +318,35 @@ final class KbdRenderer {
         }
     }
 
-    /** Tab/Esc 放不下时缩成 Ta/Es。 */
-    private static String fitSubLabel(String label, float keyW, int size, int gap) {
-        if ("Tab".equals(label) && KbdLayout.textWidth("Tab", size) > keyW - gap) {
+    /**
+     * 短标签统一开关：修饰键或 Tab/Esc 任一放不下，就一起用 Ct/Al/Sh + Ta/Es。
+     */
+    static boolean compactLabels(KbdLayout L) {
+        int modKeyW = L.landscape ? L.outerW : L.k;
+        int widest = Math.max(KbdLayout.textWidth("Ctrl", L.S),
+                Math.max(KbdLayout.textWidth("Alt", L.S), KbdLayout.textWidth("Shft", L.S)));
+        boolean modShort = widest >= modKeyW - 2;
+        boolean subShort = KbdLayout.textWidth("Tab", L.S) > L.k - L.g
+                || KbdLayout.textWidth("Esc", L.S) > L.k - L.g;
+        return modShort || subShort;
+    }
+
+    /** Tab/Esc 在紧凑模式下缩成 Ta/Es。 */
+    private static String fitSubLabel(String label, boolean compact) {
+        if (!compact) {
+            return label;
+        }
+        if ("Tab".equals(label)) {
             return "Ta";
         }
-        if ("Esc".equals(label) && KbdLayout.textWidth("Esc", size) > keyW - gap) {
+        if ("Esc".equals(label)) {
             return "Es";
         }
         return label;
     }
 
     /** 修饰键同宽，按最长标签统一决定是否用 Ct/Al/Sh。 */
-    private static String modifierLabel(KbdApp app, KbdData.Key key, float keyW, int size) {
+    private static String modifierLabel(KbdApp app, KbdData.Key key, boolean compact) {
         String full = key.main.pick(app.chinese);
         String shortLabel;
         switch (key.mod) {
@@ -345,9 +362,7 @@ final class KbdRenderer {
             default:
                 return full;
         }
-        int widest = Math.max(KbdLayout.textWidth("Ctrl", size),
-                Math.max(KbdLayout.textWidth("Alt", size), KbdLayout.textWidth("Shft", size)));
-        return widest >= keyW - 2 ? shortLabel : full;
+        return compact ? shortLabel : full;
     }
 
     private static boolean isActive(KbdApp app, KbdData.Key key) {

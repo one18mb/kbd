@@ -209,7 +209,7 @@
       expX: midX, expY: 0, expW: midW, expH: kbH,
       expCols: 2, expCellW: panelCellW,
       expRows: expRows, expRowY: expRowY, expCellH: f,
-      pinyinX: midX, pinyinW: midW,
+      pinyinX: letterX, pinyinW: rightX + letterW - letterX,
       preeditPad: Math.max(1, Math.round(f / 16)),
       pinyinH: f, pinyinGap: g,
       symbolX: letterX, symbolW: symbolW, symbolCols: symbolCols,

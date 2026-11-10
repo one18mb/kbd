@@ -369,8 +369,9 @@ final class KbdLayout {
         preeditPad = Math.max(1, Math.round(S / 16f));
         preeditGap = g;
         preeditFont = S;
-        preeditLeft = midX;
-        preeditWidth = midW;
+        // 横屏拼音浮层从 q 起点到 p 终点。
+        preeditLeft = letterX;
+        preeditWidth = rightX + letterW - letterX;
     }
 
     // ---------- 竖屏矩形 ----------

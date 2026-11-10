@@ -42,14 +42,11 @@ int main(int argc, char **argv) {
         const Scheme schemes[] = {
                 {"xiaohe", libime::ShuangpinBuiltinProfile::Xiaohe},
                 {"ziranma", libime::ShuangpinBuiltinProfile::Ziranma},
-                {"ms", libime::ShuangpinBuiltinProfile::MS},
-                {"ziguang", libime::ShuangpinBuiltinProfile::Ziguang},
                 {"abc", libime::ShuangpinBuiltinProfile::ABC},
                 {"zhongwenzhixing", libime::ShuangpinBuiltinProfile::Zhongwenzhixing},
-                {"pinyinjiajia", libime::ShuangpinBuiltinProfile::PinyinJiajia},
                 {"gb", libime::ShuangpinBuiltinProfile::GB},
         };
-        std::cout << "内置双拼 8 种：\n";
+        std::cout << "26 键双拼 5 种：\n";
         for (const auto &s : schemes) {
             libime::ShuangpinProfile p(s.profile);
             std::cout << "  " << s.code

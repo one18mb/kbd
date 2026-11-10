@@ -30,8 +30,9 @@ public final class MainActivity extends Activity {
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
-        String scheme = getSharedPreferences("kbd", MODE_PRIVATE)
-                .getString("scheme", "quanpin");
+        String scheme = KbdData.normalizeScheme(
+                getSharedPreferences("kbd", MODE_PRIVATE)
+                        .getString("scheme", "quanpin"));
         TextView current = new TextView(this);
         current.setText("当前方案：" + KbdData.schemeLabel(scheme));
         current.setTextSize(16);

@@ -282,6 +282,20 @@ public final class ParityTests {
         dots.emitChar("……");
         check("…… 无物理键码 → 仍按文本插入",
                 h6.keys.isEmpty() && "……".equals(h6.committed.toString()));
+
+        Host h7 = new Host();
+        KbdApp shiftTab = newApp(h7);
+        shiftTab.mods.get("shift").active = true;
+        shiftTab.emitChar("Tab");
+        check("Shift+Tab → KEYCODE_TAB + META_SHIFT",
+                h7.keys.size() == 1 && h7.keys.get(0) == KbdApp.KEY_TAB
+                        && h7.metas.get(0) == KbdApp.META_SHIFT);
+        shiftTab.mods.get("shift").active = true;
+        shiftTab.mods.get("ctrl").active = true;
+        shiftTab.emitChar("Esc");
+        check("Ctrl+Shift+Esc → KEYCODE_ESCAPE + CTRL|SHIFT",
+                h7.keys.size() == 2 && h7.keys.get(1) == KbdApp.KEY_ESCAPE
+                        && h7.metas.get(1) == (KbdApp.META_CTRL | KbdApp.META_SHIFT));
     }
 
     // 中文 f 键：引号循环
@@ -445,7 +459,10 @@ public final class ParityTests {
         app.escapeBuffer = "\\zh=nope";
         KbdApp.Preview bad = app.escapePreview();
         check("未知方案无效", !bad.valid);
-        check("方案列表 9 项", KbdData.SCHEMES.size() == 9);
+        check("非26键方案已移除", !KbdData.SCHEMES.containsKey("ms")
+                && !KbdData.SCHEMES.containsKey("ziguang")
+                && !KbdData.SCHEMES.containsKey("pinyinjiajia"));
+        check("方案列表 6 项", KbdData.SCHEMES.size() == 6);
 
         KbdApp longApp = newApp(new Host());
         longApp.escape = true;

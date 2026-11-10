@@ -313,18 +313,26 @@
     return w;
   }
 
-  function modifierLabel(def, model) {
-    var full = (def.main && (def.main[model.lang] || def.main.en)) || '';
-    var short = MOD_SHORT[def.mod];
-    if (!short || !metrics) return full;
+  // 修饰键或 Tab/Esc 任一放不下，就一起进入紧凑标签模式。
+  function compactLabels() {
+    if (!metrics) return false;
     var keyW = metrics.orientation === 'landscape' ? metrics.outerW : metrics.K;
-    // 三个修饰键同宽，按最长标签统一切换，避免 Ct/Alt/Sh 混排。
     var widest = Math.max(
       labelWidth('Ctrl', metrics.S),
       labelWidth('Alt', metrics.S),
       labelWidth('Shft', metrics.S)
     );
-    return widest >= keyW - 2 ? short : full;
+    var modShort = widest >= keyW - 2;
+    var subShort = labelWidth('Tab', metrics.S) > metrics.K - metrics.g
+      || labelWidth('Esc', metrics.S) > metrics.K - metrics.g;
+    return modShort || subShort;
+  }
+
+  function modifierLabel(def, model) {
+    var full = (def.main && (def.main[model.lang] || def.main.en)) || '';
+    var short = MOD_SHORT[def.mod];
+    if (!short || !metrics) return full;
+    return compactLabels() ? short : full;
   }
 
   function keyMainText(model, id) {
@@ -356,12 +364,11 @@
     return keySlideText(model, def, dir);
   }
 
-  // Tab/Esc 放不下时缩成 Ta/Es，和 Android 渲染规则一致。
+  // 紧凑模式下 Tab/Esc 缩成 Ta/Es，和 Ct/Al/Sh 同时生效。
   function fitSubLabel(label) {
-    if (!metrics) return label;
-    var w = metrics.K;
-    if (label === 'Tab' && labelWidth(label, metrics.S) > w - metrics.g) return 'Ta';
-    if (label === 'Esc' && labelWidth(label, metrics.S) > w - metrics.g) return 'Es';
+    if (!compactLabels()) return label;
+    if (label === 'Tab') return 'Ta';
+    if (label === 'Esc') return 'Es';
     return label;
   }
 

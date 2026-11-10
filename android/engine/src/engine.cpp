@@ -57,29 +57,20 @@ size_t utf8Count(const std::string &text) {
 }
 
 std::string versionString() {
-    return "kbd-engine 1.0 / libime 1.1.17";
+    return "kbd-engine 1.1 / libime 1.1.17";
 }
 
-/** libime 1.1.17 内置 8 种双拼；quanpin 走全拼，不使用 profile。 */
+/** libime 1.1.17 内置 8 种双拼；KBD 只暴露 26 键的 5 种，quanpin 不使用 profile。 */
 libime::ShuangpinBuiltinProfile builtinProfile(const std::string &scheme) {
     using P = libime::ShuangpinBuiltinProfile;
     if (scheme == "ziranma") {
         return P::Ziranma;
-    }
-    if (scheme == "ms") {
-        return P::MS;
-    }
-    if (scheme == "ziguang") {
-        return P::Ziguang;
     }
     if (scheme == "abc") {
         return P::ABC;
     }
     if (scheme == "zhongwenzhixing") {
         return P::Zhongwenzhixing;
-    }
-    if (scheme == "pinyinjiajia") {
-        return P::PinyinJiajia;
     }
     if (scheme == "gb") {
         return P::GB;
@@ -96,16 +87,13 @@ std::string selfTest() {
     const Item items[] = {
             {"xiaohe", ShuangpinBuiltinProfile::Xiaohe},
             {"ziranma", ShuangpinBuiltinProfile::Ziranma},
-            {"ms", ShuangpinBuiltinProfile::MS},
-            {"ziguang", ShuangpinBuiltinProfile::Ziguang},
             {"abc", ShuangpinBuiltinProfile::ABC},
             {"zhongwenzhixing", ShuangpinBuiltinProfile::Zhongwenzhixing},
-            {"pinyinjiajia", ShuangpinBuiltinProfile::PinyinJiajia},
             {"gb", ShuangpinBuiltinProfile::GB},
     };
     std::ostringstream os;
     os << "libime 已链接\n";
-    os << "内置双拼 8 种 + 全拼 quanpin\n";
+    os << "26 键双拼 5 种 + 全拼 quanpin\n";
     for (const auto &item : items) {
         ShuangpinProfile profile(item.profile);
         os << item.code << "：合法键 " << profile.validInput().size()

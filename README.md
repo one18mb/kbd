@@ -1,10 +1,12 @@
 # KBD
 
+当前版本：**1.1**
+
 一个面向中文的 Android 输入法，基准分辨率 720×1604，目标设备为鸿蒙 4.0 / Android 12（arm64-v8a）。键盘几何按屏幕宽高自适应，竖屏/横屏共用一套 libime 拼音引擎。
 
 ## 特性
 
-- **全拼 + 8 种双拼**：全拼、小鹤、自然码、微软、紫光、智能ABC、中文之星、拼音加加、国标。默认全拼。
+- **全拼 + 5 种 26 键双拼**：全拼、小鹤、自然码、智能ABC、中文之星、国标。默认全拼。
 - **精确像素自适应**：按屏幕 `W/H` 选择竖/横模式，键宽、字号、缝隙、边距按整数像素推进；720×1604 与 1604×720 精确复现基准设计。
 - **四色无边框视觉**：深/浅两套 4 色主题，`\sk` 切换。
 - **转义命令**：`\zh` 切换方案，`\sk` 切换皮肤，`\st` 切换简繁，`\sb` 调整底部安全区。
@@ -21,6 +23,18 @@
 | --- | --- |
 | ![768x1024](docs/preview/20-adaptive-768x1024.png) | ![800x800](docs/preview/21-adaptive-800x800.png) |
 
+## 原型
+
+`webdemo/` 是可交互的屏幕自适应原型，用于在浏览器里调 `W/H`、`R`、主题和尺寸预设：
+
+![webdemo](docs/preview/webdemo-portrait.png)
+
+```sh
+cd webdemo
+python3 -m http.server 8765
+# 打开 http://127.0.0.1:8765/
+```
+
 ## 安装
 
 从 GitHub Releases 下载 `app-release.apk`，在系统设置中启用 KBD 输入法并切换为当前输入法。
@@ -36,8 +50,8 @@
 | --- | --- |
 | `\zh=quanpin` | 全拼 |
 | `\zh=xiaohe` | 小鹤双拼 |
-| `\zh=ziranma` / `\zh=ms` / `\zh=ziguang` / `\zh=abc` | 自然码 / 微软 / 紫光 / 智能ABC |
-| `\zh=zhongwenzhixing` / `\zh=pinyinjiajia` / `\zh=gb` | 中文之星 / 拼音加加 / 国标 |
+| `\zh=ziranma` / `\zh=abc` | 自然码 / 智能ABC |
+| `\zh=zhongwenzhixing` / `\zh=gb` | 中文之星 / 国标 |
 | `\sk=dark` / `\sk=light` / `\sk=auto` | 暗色 / 亮色 / 跟随系统 |
 | `\st=s` / `\st=t` | 简体 / 繁体 |
 | `\sb=32` / `\sb=auto` | 底部安全区固定 / 跟随系统 |

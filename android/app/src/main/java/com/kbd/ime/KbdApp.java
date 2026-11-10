@@ -707,6 +707,10 @@ final class KbdApp {
             return;
         }
         int meta = metaState();
+        boolean tabEsc = "Tab".equals(label) || "Esc".equals(label);
+        if (tabEsc && mods.get("shift").active) {
+            meta |= META_SHIFT;
+        }
         if (meta != 0) {
             int[] ascii = asciiKey(label);
             if (ascii != null) {

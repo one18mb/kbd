@@ -1,6 +1,6 @@
 # 屏幕自适应几何规则（定稿）
 
-状态：2026-11-10 定稿。webdemo 为真值来源，Android 按本文移植。
+状态：2026-11-11 1.1。webdemo 为真值来源，Android 按本文移植。
 
 ## 1. 输入
 
@@ -156,7 +156,7 @@ Ctrl / Alt / Shft
 Ct   / Al  / Sh
 ```
 
-三个键同宽，统一判断：取最长标签 `Ctrl/Shft = 2f`，若 `2f ≥ 键宽 − 2`，三键一起切短，避免 `Ct / Alt / Sh` 混排。
+统一紧凑开关：修饰键取最长标签 `Ctrl/Shft = 2f`，若 `2f ≥ 键宽 − 2`，或 `Tab/Esc` 放不下，则 `Ct/Al/Sh` 与 `Ta/Es` 同时生效；否则全部全称。这样不会出现 `Ct/Al/Sh` 与 `Tab/Esc` 混排。
 
 已验证：
 
@@ -165,10 +165,11 @@ Ct   / Al  / Sh
 | 720×1604 竖 | 68 | 32 | Ctrl / Alt / Shft |
 | 768×1024 竖 | 70 | 48 | Ct / Al / Sh |
 | 300×260 横 | 34 | 16 | Ct / Al / Sh |
+| 800×800 横 | 96 | 32 | Ct / Al / Sh + Ta / Es |
 | 1024×768 横 | 124 | 32 | Ctrl / Alt / Shft |
 | 1604×720 横 | 140 | 32 | Ctrl / Alt / Shft |
 
-副标签同理：`Tab → Ta`、`Esc → Es`，条件 `textWidth > 键宽 − g`。
+`800×800` 的修饰键本身放得下，但字母键上的 `Tab/Esc` 放不下，所以整体进入紧凑模式；`1024×768` 两者都放得下，保持全称。
 
 ## 7. b 与 `\sb` 命令
 
@@ -201,7 +202,7 @@ Ct   / Al  / Sh
 | 动态 `S/g/K` | `KbdLayout.S/g/k`，渲染不再用 `scale` |
 | 候选装箱 | `KbdLayout` 实例方法 |
 | 符号列数 | `KbdLayout.symbolCols` |
-| 修饰键短标签 | `KbdRenderer.keyMainText` 按键宽判断 |
+| 修饰键/副标签短标签 | `KbdRenderer.compactLabels` 统一判断 |
 | `R / h_a / b` 控制 | `\sb` 命令 + 系统 inset；R 固定 0.75 |
 
 ## 10. 移植状态与待定项
@@ -211,9 +212,9 @@ Ct   / Al  / Sh
 - `KbdLayout(W,H,b)` 计算模式与几何；`KbdInputView` 传入窗口宽高。
 - `KbdIme` 默认 `b` 取系统底部 inset；`\sb=num` / `\sb=auto` 覆盖并持久化。
 - `KbdRenderer` 使用动态 `S/g/k`，空格 `2K+c`，中缝偏移，修饰键 `Ct/Al/Sh`。
-- 宿主端 131 条动作断言 + 720/1604 几何断言 + 最小/3:4/1:1/1080 落点断言全部通过。
+- 宿主端 134 条动作断言 + 720/1604 几何断言 + 最小/3:4/1:1/1080 落点断言全部通过。
 
 已确认：
 
 - 横屏 `p=2` 是正常现象，Android 候选有跨行机制兜底；webdemo 的候选强制截断只是简化，不作为真值。
-- `Tab → Ta`、`Esc → Es` 已加入渲染规则（见第 6 节）。
+- `Tab → Ta`、`Esc → Es` 与 `Ct/Al/Sh` 统一开关（见第 6 节）；Shift+Tab / Shift+Esc 已支持。

@@ -44,14 +44,16 @@ public final class KbdIme extends InputMethodService implements KbdApp.Host {
         new Thread(() -> {
             String error = null;
             try {
-                String scheme = getSharedPreferences("kbd", MODE_PRIVATE)
-                        .getString("scheme", "quanpin");
+                String scheme = KbdData.normalizeScheme(
+                        getSharedPreferences("kbd", MODE_PRIVATE)
+                                .getString("scheme", "quanpin"));
                 engine.setScheme(scheme);
                 File dir = EngineData.ensure(KbdIme.this);
                 File user = EngineData.userDir(KbdIme.this);
                 engine.load(dir.getAbsolutePath(), user.getAbsolutePath());
-                engine.setScheme(getSharedPreferences("kbd", MODE_PRIVATE)
-                        .getString("scheme", "quanpin"));
+                engine.setScheme(KbdData.normalizeScheme(
+                        getSharedPreferences("kbd", MODE_PRIVATE)
+                                .getString("scheme", "quanpin")));
                 if (!engine.isReady()) {
                     error = "引擎未就绪";
                 }

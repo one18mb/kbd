@@ -102,24 +102,25 @@ final class KbdData {
     static final String[][] PORTRAIT_ROWS;
     static final List<String> SYMBOLS;
 
-    /** 输入方案：libime 内置 8 种双拼 + 全拼。 */
+    /** 输入方案：只保留 26 键双拼；微软/紫光/加加使用非字母键，已移除。 */
     static final Map<String, String> SCHEMES = new LinkedHashMap<>();
 
     static {
         SCHEMES.put("quanpin", "全拼");
         SCHEMES.put("xiaohe", "小鹤双拼");
         SCHEMES.put("ziranma", "自然码");
-        SCHEMES.put("ms", "微软双拼");
-        SCHEMES.put("ziguang", "紫光双拼");
         SCHEMES.put("abc", "智能ABC");
         SCHEMES.put("zhongwenzhixing", "中文之星");
-        SCHEMES.put("pinyinjiajia", "拼音加加");
         SCHEMES.put("gb", "国标双拼");
     }
 
     static String schemeLabel(String code) {
         String label = SCHEMES.get(code);
         return label == null ? code : label;
+    }
+
+    static String normalizeScheme(String code) {
+        return SCHEMES.containsKey(code) ? code : "quanpin";
     }
 
     // 横屏：左右外列 + 左右字母簇（对应 webdemo landscape）
