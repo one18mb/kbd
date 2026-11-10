@@ -57,7 +57,7 @@ size_t utf8Count(const std::string &text) {
 }
 
 std::string versionString() {
-    return "kbd-engine 1.1 / libime 1.1.17";
+    return "kbd-engine 1.2 / libime 1.1.17";
 }
 
 /** libime 1.1.17 内置 8 种双拼；KBD 只暴露 26 键的 5 种，quanpin 不使用 profile。 */
