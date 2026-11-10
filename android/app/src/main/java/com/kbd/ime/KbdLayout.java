@@ -452,8 +452,8 @@ final class KbdLayout {
         int widest = Math.max(textWidth("Ctrl", S),
                 Math.max(textWidth("Alt", S), textWidth("Shft", S)));
         boolean modShort = widest >= modKeyW - 2;
-        boolean subShort = textWidth("Tab", S) > k - g
-                || textWidth("Esc", S) > k - g;
+        boolean subShort = textWidth("Tab", S) > k
+                || textWidth("Esc", S) > k;
         return modShort || subShort;
     }
 

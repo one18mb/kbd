@@ -309,8 +309,8 @@ public final class LayoutPreview {
                 "32px=" + KbdLayout.textWidth("Ctrl", 32)
                         + " 48px=" + KbdLayout.textWidth("Ctrl", 48));
         ok &= check("Tab/Esc 短标签阈值",
-                KbdLayout.textWidth("Tab", 48) > 70 - 6
-                        && KbdLayout.textWidth("Tab", 32) <= 68 - 4,
+                KbdLayout.textWidth("Tab", 48) > 70
+                        && KbdLayout.textWidth("Tab", 32) <= 68,
                 "48px=" + KbdLayout.textWidth("Tab", 48)
                         + " 32px=" + KbdLayout.textWidth("Tab", 32));
         ok &= check("短标签统一：720 全称 / 768 全短 / 800 横屏全短 / 1024 横屏全称",
@@ -322,6 +322,12 @@ public final class LayoutPreview {
                         + " 768=" + threeFour.compactLabels()
                         + " 800=" + square.compactLabels()
                         + " 1024=" + new KbdLayout(1024, 768, 32).compactLabels());
+        KbdLayout minPortrait = new KbdLayout(160, 256, 32);
+        KbdLayout minLandscape = new KbdLayout(300, 260, 32);
+        ok &= check("最小尺寸下 Ta/Es 不超过键宽",
+                minPortrait.compactLabels() && minPortrait.k >= KbdLayout.textWidth("Ta", minPortrait.S)
+                        && minLandscape.compactLabels() && minLandscape.k >= KbdLayout.textWidth("Ta", minLandscape.S),
+                "160×256 k=" + minPortrait.k + " 300×260 k=" + minLandscape.k);
 
         // 横屏（webdemo landscape）
         KbdLayout LL = new KbdLayout(1604, 720, 32);

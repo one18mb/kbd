@@ -378,7 +378,7 @@ body {
 .key .up,
 .key .down {
   width: 100%;
-  padding: 0 var(--pad);
+  padding: 0;
   text-align: center;
   color: var(--sub-text);
   font-size: var(--s);

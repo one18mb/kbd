@@ -115,12 +115,12 @@ H ≥ 208n + 12·g_start(n) + b
 
 ## 6. 短标签
 
-统一紧凑开关：修饰键或 Tab/Esc 任一放不下，就同时使用 `Ct/Al/Sh` 与 `Ta/Es`。
+统一紧凑开关：修饰键或 Tab/Esc 任一放不下，就同时使用 `Ct/Al/Sh` 与 `Ta/Es`。主标签与副标签都占满整个键宽 `K`，紧凑后 `Ta/Es` 宽 `S`，而 `K ≥ S` 恒成立，因此不会在最小尺寸下被截断。
 
 ```text
 modKeyW = landscape ? outerW : K
 modShort = max(textWidth("Ctrl"), textWidth("Alt"), textWidth("Shft")) ≥ modKeyW − 2
-subShort = textWidth("Tab") > K − g 或 textWidth("Esc") > K − g
+subShort = textWidth("Tab") > K 或 textWidth("Esc") > K
 compact = modShort || subShort
 ```
 

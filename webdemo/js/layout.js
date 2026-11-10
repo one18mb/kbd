@@ -290,8 +290,8 @@
     var widest = Math.max(textWidth('Ctrl', m.S),
       Math.max(textWidth('Alt', m.S), textWidth('Shft', m.S)));
     var modShort = widest >= modKeyW - 2;
-    var subShort = textWidth('Tab', m.S) > m.K - m.g
-      || textWidth('Esc', m.S) > m.K - m.g;
+    var subShort = textWidth('Tab', m.S) > m.K
+      || textWidth('Esc', m.S) > m.K;
     return modShort || subShort;
   }
 

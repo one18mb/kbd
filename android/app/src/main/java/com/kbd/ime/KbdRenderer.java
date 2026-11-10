@@ -278,17 +278,19 @@ final class KbdRenderer {
         float size = L.S;
         float w = rect[2] - rect[0];
 
+        boolean compact = L.compactLabels();
+
         if (sliding) {
             String label = pressed.mode == MODE_SLIDE_UP
                     ? keyUpText(app, key) : keyDownText(app, key);
             if (!label.isEmpty()) {
-                sink.text(label, (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2,
-                        size, mainColor, true, w - L.g);
+                sink.text(fitSubLabel(label, compact),
+                        (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2,
+                        size, mainColor, true, w);
             }
             return;
         }
 
-        boolean compact = L.compactLabels();
         String main = key.kind == KbdData.Kind.MODIFIER
                 ? modifierLabel(app, key, compact)
                 : keyMainText(app, key);
@@ -305,12 +307,12 @@ final class KbdRenderer {
             if (!pressingNow) {
                 if (!up.isEmpty()) {
                     sink.text(up, (rect[0] + rect[2]) / 2, rect[1] + L.S / 2f,
-                            size, dimColor, true, w - L.g);
+                            size, dimColor, true, w);
                 }
                 if (!down.isEmpty()) {
                     sink.text(down, (rect[0] + rect[2]) / 2,
                             rect[1] + L.keyH - L.S / 2f,
-                            size, dimColor, true, w - L.g);
+                            size, dimColor, true, w);
                 }
             }
             sink.text(main, (rect[0] + rect[2]) / 2, rect[1] + L.keyH / 2f,

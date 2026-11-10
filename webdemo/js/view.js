@@ -296,36 +296,9 @@
 
   var MOD_SHORT = { ctrl: 'Ct', alt: 'Al', shift: 'Sh' };
 
-  // Unifont 确定性宽度：全角 S，半角 S/2。
-  function labelWidth(text, s) {
-    var w = 0;
-    for (var i = 0; i < text.length; i++) {
-      var c = text.charCodeAt(i);
-      var full = c >= 0x1100 && (c <= 0x115F || c === 0x2329 || c === 0x232A
-        || (c >= 0x2E80 && c <= 0xA4CF && c !== 0x303F)
-        || (c >= 0xAC00 && c <= 0xD7A3)
-        || (c >= 0xF900 && c <= 0xFAFF)
-        || (c >= 0xFE30 && c <= 0xFE6F)
-        || (c >= 0xFF00 && c <= 0xFF60)
-        || (c >= 0xFFE0 && c <= 0xFFE6));
-      w += full ? s : s / 2;
-    }
-    return w;
-  }
-
-  // 修饰键或 Tab/Esc 任一放不下，就一起进入紧凑标签模式。
+  // 修饰键或 Tab/Esc 任一放不下，就一起进入紧凑标签模式（由 layout 统一计算）。
   function compactLabels() {
-    if (!metrics) return false;
-    var keyW = metrics.orientation === 'landscape' ? metrics.outerW : metrics.K;
-    var widest = Math.max(
-      labelWidth('Ctrl', metrics.S),
-      labelWidth('Alt', metrics.S),
-      labelWidth('Shft', metrics.S)
-    );
-    var modShort = widest >= keyW - 2;
-    var subShort = labelWidth('Tab', metrics.S) > metrics.K - metrics.g
-      || labelWidth('Esc', metrics.S) > metrics.K - metrics.g;
-    return modShort || subShort;
+    return !!(metrics && metrics.compactLabels);
   }
 
   function modifierLabel(def, model) {
