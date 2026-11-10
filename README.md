@@ -25,13 +25,13 @@
 
 ## 在线原型
 
-**https://one18mb.github.io/kbd/**
+[https://one18mb.github.io/kbd/](https://one18mb.github.io/kbd/)
 
 `webdemo/` 是纯静态的屏幕自适应原型，由 GitHub Actions 部署到 Pages。可调 `W/H/R/b`、主题、方案和尺寸预设；候选用 mock 数据，不运行 libime。本地运行方式见 [docs/development.md](docs/development.md)。
 
 ## 安装
 
-从 GitHub Releases 下载 `app-release.apk`，在系统设置中启用 KBD 输入法并切换为当前输入法。
+从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.1-arm64-v8a.apk`），在系统设置中启用 KBD 输入法并切换为当前输入法。
 
 - 最低 Android 8.0（API 26），仅 `arm64-v8a`。
 - 发布 APK 使用项目维护者的本地签名密钥；从源码自行构建的 APK 可以正常安装，但与官方 APK 不能互相覆盖升级。

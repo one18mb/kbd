@@ -1,4 +1,4 @@
-# 第三方源码与数据（由 docs/dev-env.md 的脚本下载生成）
+# 第三方源码与数据（按 docs/development.md 准备）
 third_party/
 
 # 由 scripts/sync-assets.sh 生成
