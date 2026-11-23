@@ -42,6 +42,8 @@
   };
 
   var metrics = null;
+  var savedView = null;
+  var pseudoFullscreen = false;
   var lastTap = { tag: null, t: 0 };
   var logEntries = [];
 
@@ -842,9 +844,115 @@
     }
   }
 
-  // 视口变化只影响画布缩放；键盘模式由 (W,H,b) 决定。
-  function handleViewportChange() {
+  // ---------- 全屏体验 ----------
+
+  function fsElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function fsActive() {
+    return !!fsElement() || pseudoFullscreen;
+  }
+
+  function updateFullscreenUi() {
+    if (V.els.fsExitBtn) V.els.fsExitBtn.hidden = !fsActive();
+  }
+
+  // 全屏时按舞台实际尺寸重排键盘，保持 1:1 像素。
+  function syncFullscreenView(force) {
+    var wrap = V.els.stageWrap;
+    if (!savedView || !wrap) return;
+    var W = Math.max(1, Math.round(wrap.clientWidth));
+    var H = Math.max(1, Math.round(wrap.clientHeight));
+    if (W < 160 || H < 160) {
+      V.fitStage();
+      return;
+    }
+    if (!force && W === state.W && H === state.H && state.b === 0) {
+      V.fitStage();
+      return;
+    }
+    state.W = W;
+    state.H = H;
+    state.b = 0;
+    rebuildAll();
+  }
+
+  function enterFullscreenView() {
+    if (savedView) return;
+    savedView = { W: state.W, H: state.H, b: state.b };
+    syncFullscreenView(true);
+    updateFullscreenUi();
+    // 部分浏览器在 fullscreenchange 时布局尚未完成，下一帧再校准一次。
+    requestAnimationFrame(function () {
+      if (savedView) syncFullscreenView(false);
+    });
+  }
+
+  function exitFullscreenView() {
+    if (!savedView) return;
+    state.W = savedView.W;
+    state.H = savedView.H;
+    state.b = savedView.b;
+    savedView = null;
+    rebuildAll();
+    updateFullscreenUi();
+  }
+
+  function enterPseudoFullscreen() {
+    if (pseudoFullscreen || fsElement()) return;
+    pseudoFullscreen = true;
+    document.body.classList.add('demo-fs');
+    updateFullscreenUi();
+    requestAnimationFrame(function () {
+      if (pseudoFullscreen) enterFullscreenView();
+    });
+  }
+
+  function exitPseudoFullscreen() {
+    if (!pseudoFullscreen) return;
+    pseudoFullscreen = false;
+    document.body.classList.remove('demo-fs');
+    exitFullscreenView();
     V.fitStage();
+  }
+
+  function toggleFullscreen() {
+    if (fsElement()) {
+      var p = document.exitFullscreen ? document.exitFullscreen() : null;
+      if (p && p.catch) p.catch(function () {});
+      return;
+    }
+    if (pseudoFullscreen) {
+      exitPseudoFullscreen();
+      return;
+    }
+    var wrap = V.els.stageWrap;
+    var req = wrap && (wrap.requestFullscreen || wrap.webkitRequestFullscreen);
+    if (!req) {
+      enterPseudoFullscreen();
+      return;
+    }
+    try {
+      var r = req.call(wrap);
+      if (r && r.catch) r.catch(function () { enterPseudoFullscreen(); });
+    } catch (e) {
+      enterPseudoFullscreen();
+    }
+  }
+
+  function handleFullscreenChange() {
+    if (fsElement()) enterFullscreenView();
+    else if (!pseudoFullscreen) exitFullscreenView();
+    updateFullscreenUi();
+    V.fitStage();
+  }
+
+  // 视口变化只影响画布缩放；全屏时按新尺寸重排，键盘模式由 (W,H,b) 决定。
+  function handleViewportChange() {
+    if (savedView) syncFullscreenView(false);
+    else V.fitStage();
+    updateFullscreenUi();
   }
 
   // ---------- 主题与演示 ----------
@@ -917,10 +1025,9 @@
       V.fitStage();
     });
     on(els.resetBtn, 'click', resetAll);
-    on(els.fullscreenBtn, 'click', function () {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen().catch(function () {});
-    });
+    on(els.fullscreenBtn, 'click', toggleFullscreen);
+    on(els.demoFullBtn, 'click', toggleFullscreen);
+    on(els.fsExitBtn, 'click', toggleFullscreen);
 
     window.KBD.input.bind({
       root: els.keyboard,
@@ -949,7 +1056,8 @@
 
     window.addEventListener('resize', handleViewportChange);
     window.addEventListener('orientationchange', handleViewportChange);
-    document.addEventListener('fullscreenchange', handleViewportChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     var media = window.matchMedia('(prefers-color-scheme: dark)');
     if (media.addEventListener) {

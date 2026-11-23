@@ -32,7 +32,7 @@
       'device', 'stageWrap', 'appScreen', 'editor', 'toast',
       'keyboard', 'controls', 'themeBtn',
       'demoBtn', 'symbolBtn', 'escapeBtn', 'showKbdBtn',
-      'logBtn', 'resetBtn', 'fullscreenBtn', 'eventLog',
+      'logBtn', 'resetBtn', 'fullscreenBtn', 'demoFullBtn', 'fsExitBtn', 'eventLog',
       'presetSelect', 'wInput', 'hInput', 'rInput', 'bInput', 'schemeSelect',
       'modeSelect', 'layoutReadout'
     ].forEach(function (id) { els[id] = $(id); });
@@ -52,7 +52,7 @@
 
   function fitStage() {
     if (!metrics) return;
-    var fs = !!document.fullscreenElement;
+    var fs = !!document.fullscreenElement || document.body.classList.contains('demo-fs');
     if (els.controls) els.controls.classList.toggle('hidden', fs);
     if (els.device) els.device.classList.toggle('actual', fs);
     var wrap = els.stageWrap;
