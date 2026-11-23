@@ -35,6 +35,10 @@ public final class LibimeEngine implements EngineBridge {
 
     private static native void nativeSaveUserDict();
 
+    public static String version() {
+        return nativeVersion();
+    }
+
     public static String selfTest() {
         return nativeVersion() + "\n\n" + nativeSelfTest();
     }
