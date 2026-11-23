@@ -56,6 +56,7 @@ final class KbdApp {
     static final int KEY_A = 29;              // KeyEvent.KEYCODE_A
     static final int KEY_ESCAPE = 111;        // KeyEvent.KEYCODE_ESCAPE
     static final int KEY_SPACE = 62;          // KeyEvent.KEYCODE_SPACE
+    static final int KEY_ENTER = 66;          // KeyEvent.KEYCODE_ENTER
     static final int KEY_TAB = 61;            // KeyEvent.KEYCODE_TAB
 
     static final int META_SHIFT = 0x00000001; // KeyEvent.META_SHIFT_ON
@@ -447,6 +448,12 @@ final class KbdApp {
             clearTempMods();
             return;
         }
+        if (mods.get("ctrl").active || mods.get("alt").active) {
+            host.sendKey(KEY_SPACE, metaState());
+            clearTempMods();
+            host.invalidate();
+            return;
+        }
         commit(" ");
         clearTempMods();
         host.invalidate();
@@ -489,6 +496,12 @@ final class KbdApp {
             host.invalidate();
             return;
         }
+        if (mods.get("ctrl").active || mods.get("alt").active) {
+            host.sendKey(KEY_ENTER, metaState());
+            clearTempMods();
+            host.invalidate();
+            return;
+        }
         commit("\n");
         clearTempMods();
         host.invalidate();
@@ -517,7 +530,7 @@ final class KbdApp {
         clearTempMods();
     }
 
-    /** ctrl/alt 的修饰态；组词中不发送组合键（保持原型语义）。 */
+    /** Ctrl/Alt/Shift 的修饰态，用于发送物理按键。 */
     private int metaState() {
         int meta = 0;
         if (mods.get("ctrl").active) {
@@ -525,6 +538,9 @@ final class KbdApp {
         }
         if (mods.get("alt").active) {
             meta |= META_ALT;
+        }
+        if (mods.get("shift").active) {
+            meta |= META_SHIFT;
         }
         return meta;
     }
@@ -708,10 +724,8 @@ final class KbdApp {
         }
         int meta = metaState();
         boolean tabEsc = "Tab".equals(label) || "Esc".equals(label);
-        if (tabEsc && mods.get("shift").active) {
-            meta |= META_SHIFT;
-        }
-        if (meta != 0) {
+        boolean combo = mods.get("ctrl").active || mods.get("alt").active;
+        if (meta != 0 && (tabEsc || combo)) {
             int[] ascii = asciiKey(label);
             if (ascii != null) {
                 host.sendKey(ascii[0], meta | ascii[1]);

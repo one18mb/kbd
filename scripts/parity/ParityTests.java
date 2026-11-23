@@ -231,6 +231,23 @@ public final class ParityTests {
         check("Ctrl+左 → DPAD_LEFT + META_CTRL",
                 h5.keys.size() == 1 && h5.keys.get(0) == KbdApp.KEY_DPAD_LEFT
                         && h5.metas.get(0) == KbdApp.META_CTRL);
+
+        Host h6 = new Host();
+        KbdApp ctrlShift = newApp(h6);
+        ctrlShift.mods.get("ctrl").active = true;
+        ctrlShift.mods.get("shift").active = true;
+        ctrlShift.letter("c");
+        check("Ctrl+Shift+C → KEYCODE_C + CTRL|SHIFT",
+                h6.keys.size() == 1 && h6.keys.get(0) == 31
+                        && h6.metas.get(0) == (KbdApp.META_CTRL | KbdApp.META_SHIFT));
+
+        Host h7 = new Host();
+        KbdApp shiftNav = newApp(h7);
+        shiftNav.mods.get("shift").active = true;
+        shiftNav.nav("right");
+        check("Shift+右 → DPAD_RIGHT + META_SHIFT",
+                h7.keys.size() == 1 && h7.keys.get(0) == KbdApp.KEY_DPAD_RIGHT
+                        && h7.metas.get(0) == KbdApp.META_SHIFT);
     }
 
     // 标准键盘 ASCII 字符的组合键
@@ -666,6 +683,15 @@ public final class ParityTests {
         KbdApp idle = newApp(h3);
         idle.tapKey("enter");
         check("空闲点换行 → 换行", "\n".equals(h3.committed.toString()));
+
+        Host h4 = new Host();
+        KbdApp ctrl = newApp(h4);
+        ctrl.mods.get("ctrl").active = true;
+        ctrl.tapKey("enter");
+        check("Ctrl+换行 → KEYCODE_ENTER + META_CTRL，不上屏换行",
+                h4.keys.size() == 1 && h4.keys.get(0) == KbdApp.KEY_ENTER
+                        && h4.metas.get(0) == KbdApp.META_CTRL
+                        && h4.committed.length() == 0);
     }
 
     // 2.3
@@ -679,6 +705,15 @@ public final class ParityTests {
         KbdApp comp = composingApp(h2);
         comp.tapKey("space");
         check("组词空格 → 不直接插入空格", h2.committed.length() == 0);
+
+        Host h3 = new Host();
+        KbdApp ctrl = newApp(h3);
+        ctrl.mods.get("ctrl").active = true;
+        ctrl.tapKey("space");
+        check("Ctrl+空格 → KEYCODE_SPACE + META_CTRL，不上屏空格",
+                h3.keys.size() == 1 && h3.keys.get(0) == KbdApp.KEY_SPACE
+                        && h3.metas.get(0) == KbdApp.META_CTRL
+                        && h3.committed.length() == 0);
     }
 
     // 2.4
