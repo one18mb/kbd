@@ -77,7 +77,7 @@ public final class MainActivity extends Activity {
                         + "空格             组词时选首选，否则输入空格\n"
                         + "长按空格         进入 \\ 转义模式\n"
                         + "展开 / 返回      组词时展开或收起候选\n"
-                        + "确认             无组词时换行\n"
+                        + "换行             点按换行，长按收起键盘\n"
                         + "删除             点按退格，长按连发\n"
                         + "候选             点按上屏；候选区滚轮滚动");
         addSection(root, "COMMANDS", commands());
@@ -88,10 +88,6 @@ public final class MainActivity extends Activity {
         addSection(root, "PRIVACY",
                 "不申请网络权限，不上传输入内容。方案、皮肤、简繁、底部安全区"
                         + "与自学习词库只保存在应用私有目录；卸载即清除。");
-        addSection(root, "FILES",
-                "应用私有目录下：\n"
-                        + "files/engine       内置词典与语言模型\n"
-                        + "files/engine-user  自学习词库");
         addDiagnostics(root);
         addSection(root, "SEE ALSO",
                 "源代码    https://github.com/one18mb/kbd\n"

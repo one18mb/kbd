@@ -374,7 +374,7 @@ final class KbdRenderer {
                 return app.symbols ? "符" : (app.chinese ? "中" : "英");
             case ENTER:
                 return app.composing()
-                        ? (app.expanded ? "返回" : "展开") : "确认";
+                        ? (app.expanded ? "返回" : "展开") : "换行";
             case SPACE:
                 return app.escape ? "\\" : "空格";
             case LETTER:

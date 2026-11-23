@@ -242,7 +242,7 @@ final class KbdData {
 
         Key enter = new Key("enter");
         enter.kind = Kind.ENTER;
-        enter.main = new Label("确认", "确认");
+        enter.main = new Label("换行", "换行");
         enter.longAction = "hide";
         enter.wide = true;
         add(enter);

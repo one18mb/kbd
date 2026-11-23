@@ -534,7 +534,7 @@
       return;
     }
     if (def.kind === 'enter') {
-      if (state.escape) { V.showToast('转义模式中确认键无效'); return; }
+      if (state.escape) { V.showToast('转义模式中换行键无效'); return; }
       if (state.composing) {
         setExpanded(!state.expanded);
         clearTempMods();

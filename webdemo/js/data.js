@@ -86,7 +86,7 @@
   add('lang', { kind: 'lang', main: { en: '英', zh: '中' }, long: 'symbol' });
   add('space', { kind: 'space', main: { en: '空格', zh: '空格' }, long: 'escape', double: true });
   add('backspace', { kind: 'backspace', main: { en: '删除', zh: '删除' }, long: 'repeat', repeat: true, double: true });
-  add('enter', { kind: 'enter', main: { en: '确认', zh: '确认' }, long: 'hide', double: true });
+  add('enter', { kind: 'enter', main: { en: '换行', zh: '换行' }, long: 'hide', double: true });
 
   const portraitRows = [
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],

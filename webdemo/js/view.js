@@ -137,7 +137,7 @@
       arrowUp: '上方向键', arrowDown: '下方向键',
       arrowLeft: '左方向键', arrowRight: '右方向键',
       shift: 'Shift', ctrl: 'Ctrl', alt: 'Alt',
-      lang: '中/英', space: '空格', backspace: '删除', enter: '确认'
+      lang: '中/英', space: '空格', backspace: '删除', enter: '换行'
     };
     if (names[id]) return names[id];
     if (def.kind === 'letter') return id;
@@ -317,7 +317,7 @@
     }
     if (id === 'enter') {
       if (model.composing) return model.expanded ? '返回' : '展开';
-      return '确认';
+      return '换行';
     }
     if (id === 'space') return model.escape ? '\\' : '空格';
     if (def.kind === 'modifier') return modifierLabel(def, model);

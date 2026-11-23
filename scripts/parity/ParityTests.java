@@ -653,19 +653,19 @@ public final class ParityTests {
         KbdApp app = newApp(h);
         app.longKey("space");
         app.tapKey("enter");
-        check("转义中点确认 → 无效", h.committed.length() == 0);
+        check("转义中点换行 → 无效", h.committed.length() == 0);
 
         Host h2 = new Host();
         KbdApp comp = composingApp(h2);
         comp.tapKey("enter");
-        check("组词中点确认 → 展开", comp.expanded);
+        check("组词中点换行 → 展开", comp.expanded);
         comp.tapKey("enter");
-        check("再点确认 → 返回", !comp.expanded);
+        check("再点换行 → 返回", !comp.expanded);
 
         Host h3 = new Host();
         KbdApp idle = newApp(h3);
         idle.tapKey("enter");
-        check("空闲点确认 → 换行", "\n".equals(h3.committed.toString()));
+        check("空闲点换行 → 换行", "\n".equals(h3.committed.toString()));
     }
 
     // 2.3
