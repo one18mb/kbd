@@ -11,8 +11,8 @@
 
   var state = {
     // 屏幕输入：模式由 layout 计算，不再读系统方向。
-    W: 720,
-    H: 1000,
+    W: 600,
+    H: 960,
     b: 32,
     ratio: 0.75,
     modeOverride: 'auto',

@@ -9,14 +9,14 @@
   <link rel="canonical" href="https://one18mb.github.io/kbd/">
   <meta property="og:type" content="website">
   <meta property="og:title" content="KBD — 中文输入，不牺牲键盘">
-  <meta property="og:description" content="完整标准键盘 + 墨水屏友好的整数像素排版；离线运行，不申请网络权限。">
+  <meta property="og:description" content="标准键盘 + 墨水屏友好的整数像素排版；离线运行，不申请网络权限。">
   <meta property="og:url" content="https://one18mb.github.io/kbd/">
   <meta property="og:image" content="https://one18mb.github.io/kbd/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/unifont.otf" as="font" type="font/otf" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=30">
-  <link rel="stylesheet" href="css/site.css?v=30">
+  <link rel="stylesheet" href="css/styles.css?v=31">
+  <link rel="stylesheet" href="css/site.css?v=31">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -24,7 +24,7 @@
     "name": "KBD",
     "applicationCategory": "UtilitiesApplication",
     "operatingSystem": "Android 8.0+",
-    "description": "面向极客的中文 Android 输入法：完整标准键盘、墨水屏友好的整数像素排版、离线隐私。",
+    "description": "面向极客的中文 Android 输入法：标准键盘、墨水屏友好的整数像素排版、离线隐私。",
     "url": "https://one18mb.github.io/kbd/",
     "downloadUrl": "https://github.com/one18mb/kbd/releases/latest",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -36,42 +36,42 @@
   <header class="site-header">
     <a class="brand display" href="#top" aria-label="KBD 首页">KBD<span class="brand-version" id="brandVersion">1.2.1</span></a>
     <nav class="site-nav" aria-label="主导航">
-      <a href="#demo">试用</a>
+      <a href="#demo">示例</a>
       <a href="#features">特性</a>
       <a href="#audience">适合</a>
       <a href="#install">安装</a>
       <a href="#developers">文档</a>
       <a href="https://github.com/one18mb/kbd" target="_blank" rel="noopener">GitHub</a>
     </nav>
-    <button id="themeBtn" class="chip display" type="button">主题：跟随系统</button>
+    <button id="themeBtn" class="chip" type="button">主题：跟随系统</button>
   </header>
 
   <main id="top">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow display">给极客的 Android 输入法 · 墨水屏友好</p>
+        <p class="eyebrow">给极客的 Android 输入法 · 墨水屏友好</p>
         <h1 class="display">中文输入，<br>不牺牲键盘</h1>
         <p class="lede">KBD 把 Ctrl / Alt / Shift、Tab / Esc 和方向键带回中文输入；整数像素排版与四色高对比界面，适合墨水屏和静态显示。离线运行，不申请网络权限。</p>
         <div class="hero-actions">
           <a class="btn btn-primary display" id="downloadBtn" href="https://github.com/one18mb/kbd/releases/latest" target="_blank" rel="noopener">下载 APK</a>
-          <a class="btn btn-ghost display" href="#demo">在线试用</a>
+          <a class="btn btn-ghost display" href="#demo">在线示例</a>
         </div>
-        <p class="hero-meta display" id="downloadMeta">Android 8.0+ · arm64-v8a · GPL-3.0</p>
+        <p class="hero-meta" id="downloadMeta">Android 8.0+ · arm64-v8a · GPL-3.0</p>
       </div>
 
       <div class="hero-demo" id="demo">
         <div class="demo-bar" id="controls">
-          <label class="field display">方案
+          <label class="field">方案
             <select id="schemeSelect"></select>
           </label>
-          <label class="field display">屏幕
+          <label class="field">屏幕
             <select id="modeSelect">
               <option value="auto">自动</option>
               <option value="portrait">竖屏</option>
               <option value="landscape">横屏</option>
             </select>
           </label>
-          <span class="demo-note display">直接点键盘试用</span>
+          <span class="demo-note">直接点键盘输入</span>
         </div>
         <div class="stage-wrap" id="stageWrap">
           <div id="device" data-orientation="portrait">
@@ -82,7 +82,7 @@
             <div id="keyboard"></div>
           </div>
         </div>
-        <div class="demo-foot display">
+        <div class="demo-foot">
           <span>候选为示例数据，布局与 Android 共用同一套算法</span>
           <button class="text-btn" id="devToggle" type="button">开发者调试</button>
         </div>
@@ -91,7 +91,7 @@
 
     <section class="section" id="features">
       <div class="section-head">
-        <p class="eyebrow display">FEATURES</p>
+        <p class="eyebrow">FEATURES</p>
         <h2 class="display">先把标准键盘和墨水屏做对</h2>
         <p class="section-lede">不依赖云输入，不收集输入内容；布局和候选都在本机完成。</p>
       </div>
@@ -125,7 +125,7 @@
 
     <section class="section" id="audience">
       <div class="section-head">
-        <p class="eyebrow display">AUDIENCE</p>
+        <p class="eyebrow">AUDIENCE</p>
         <h2 class="display">适合谁，不适合谁</h2>
         <p class="section-lede">KBD 不是全能输入法；它优先服务一类明确的需求。</p>
       </div>
@@ -153,38 +153,38 @@
 
     <section class="section" id="schemes">
       <div class="section-head">
-        <p class="eyebrow display">SCHEMES</p>
+        <p class="eyebrow">SCHEMES</p>
         <h2 class="display">六种输入方案</h2>
-        <p class="section-lede">默认全拼；其余为 26 键双拼，不使用非字母键。点选可切换上方试用键盘。</p>
+        <p class="section-lede">默认全拼；其余为 26 键双拼，不使用非字母键。点选可切换上方示例键盘。</p>
       </div>
       <div class="scheme-grid">
         <button class="scheme-card" type="button" data-scheme="quanpin">
-          <span class="scheme-code display">quanpin</span>
+          <span class="scheme-code">quanpin</span>
           <strong class="display">全拼</strong>
           <em>默认</em>
         </button>
         <button class="scheme-card" type="button" data-scheme="xiaohe">
-          <span class="scheme-code display">xiaohe</span>
+          <span class="scheme-code">xiaohe</span>
           <strong class="display">小鹤双拼</strong>
           <em>26 键</em>
         </button>
         <button class="scheme-card" type="button" data-scheme="ziranma">
-          <span class="scheme-code display">ziranma</span>
+          <span class="scheme-code">ziranma</span>
           <strong class="display">自然码</strong>
           <em>26 键</em>
         </button>
         <button class="scheme-card" type="button" data-scheme="abc">
-          <span class="scheme-code display">abc</span>
+          <span class="scheme-code">abc</span>
           <strong class="display">智能ABC</strong>
           <em>26 键</em>
         </button>
         <button class="scheme-card" type="button" data-scheme="zhongwenzhixing">
-          <span class="scheme-code display">zhongwenzhixing</span>
+          <span class="scheme-code">zhongwenzhixing</span>
           <strong class="display">中文之星</strong>
           <em>26 键</em>
         </button>
         <button class="scheme-card" type="button" data-scheme="gb">
-          <span class="scheme-code display">gb</span>
+          <span class="scheme-code">gb</span>
           <strong class="display">国标双拼</strong>
           <em>26 键</em>
         </button>
@@ -193,7 +193,7 @@
 
     <section class="section" id="install">
       <div class="section-head">
-        <p class="eyebrow display">INSTALL</p>
+        <p class="eyebrow">INSTALL</p>
         <h2 class="display">三步开始使用</h2>
       </div>
       <ol class="steps">
@@ -221,15 +221,15 @@
       </ol>
       <div class="install-actions">
         <a class="btn btn-primary display download-link" href="https://github.com/one18mb/kbd/releases/latest" target="_blank" rel="noopener">前往下载</a>
-        <span class="hero-meta display">Android 8.0+ · arm64-v8a · 与 1.2 同签名可覆盖升级</span>
+        <span class="hero-meta">Android 8.0+ · arm64-v8a · 与 1.2 同签名可覆盖升级</span>
       </div>
     </section>
 
     <section class="section" id="developers">
       <div class="section-head">
-        <p class="eyebrow display">DEVELOPERS</p>
+        <p class="eyebrow">DEVELOPERS</p>
         <h2 class="display">源码与文档</h2>
-        <p class="section-lede">KBD 以 GPL-3.0-or-later 发布；键盘、引擎与在线原型都可以单独阅读。</p>
+        <p class="section-lede">KBD 以 GPL-3.0-or-later 发布；键盘、引擎与在线示例都可以单独阅读。</p>
       </div>
       <div class="link-grid">
         <a class="link-card" href="https://github.com/one18mb/kbd/blob/main/docs/geometry.md" target="_blank" rel="noopener">
@@ -261,7 +261,7 @@
 
     <section class="section support" id="support">
       <div class="support-copy">
-        <p class="eyebrow display">SUPPORT</p>
+        <p class="eyebrow">SUPPORT</p>
         <h2 class="display">赞赏支持</h2>
         <p>截屏保存后，用微信「扫一扫」从相册识别；自愿赠与，与功能、授权无关。</p>
         <p class="support-note">如果 KBD 对你有用，也欢迎在 GitHub 上 Star / Watch。</p>
@@ -285,7 +285,7 @@
   <section class="dev-panel" id="devPanel" aria-label="开发者调试">
     <div class="dev-head">
       <div>
-        <p class="eyebrow display">DEV</p>
+        <p class="eyebrow">DEV</p>
         <h2 class="display">开发者调试</h2>
       </div>
       <button class="text-btn" id="devClose" type="button">关闭</button>
@@ -322,10 +322,10 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/data.js?v=30"></script>
-  <script src="js/layout.js?v=30"></script>
-  <script src="js/view.js?v=30"></script>
-  <script src="js/input.js?v=30"></script>
-  <script src="js/app.js?v=30"></script>
+  <script src="js/data.js?v=31"></script>
+  <script src="js/layout.js?v=31"></script>
+  <script src="js/view.js?v=31"></script>
+  <script src="js/input.js?v=31"></script>
+  <script src="js/app.js?v=31"></script>
 </body>
 </html>

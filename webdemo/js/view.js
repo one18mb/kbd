@@ -60,7 +60,19 @@
     var availH = wrap.clientHeight;
     // 自适应预览：小屏幕放大到看得清，大屏幕缩到装得下；上限 4 倍。
     var fit = Math.min(availW / metrics.W, availH / metrics.H);
-    stageScale = Math.max(0.1, Math.min(fit, 4));
+    // 优先让键盘字号落在 16px 的整数倍；放不下时退到整数像素。
+    var unit = 16 / metrics.S;
+    var snap = fit;
+    if (unit > 0) {
+      var whole = Math.floor(fit / unit);
+      if (whole >= 1) {
+        snap = whole * unit;
+      } else {
+        var px = Math.floor(fit * metrics.S);
+        snap = px >= 1 ? px / metrics.S : fit;
+      }
+    }
+    stageScale = Math.max(0.1, Math.min(snap, 4));
     els.device.style.width = metrics.W + 'px';
     els.device.style.height = metrics.H + 'px';
     els.device.style.transform = 'translate(-50%, -50%) scale(' + stageScale + ')';

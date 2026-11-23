@@ -2,7 +2,7 @@
 
 最新发布：**1.2.1**。本 README 描述 `main` 分支。
 
-面向极客的中文 Android（安卓）输入法：完整标准键盘 + 墨水屏友好的整数像素排版。离线运行，不申请网络权限。
+面向极客的中文 Android（安卓）输入法：标准键盘 + 墨水屏友好的整数像素排版。离线运行，不申请网络权限。
 
 ## 截图
 
@@ -67,7 +67,7 @@ KBD 不是全能输入法：只提供 26 键布局，不支持九宫格和语音
 
 [https://one18mb.github.io/kbd/](https://one18mb.github.io/kbd/)
 
-官网提供下载入口、可交互键盘试用、功能与双拼方案说明，以及文档和源码链接。试用区的布局与 Android 共用同一套算法，候选用 mock 数据，不运行 libime。开发调试面板可通过 `?dev=1` 打开。本地运行方式见 [docs/development.md](docs/development.md)。
+官网提供下载入口、可交互键盘示例、功能与双拼方案说明，以及文档和源码链接。示例区的布局与 Android 共用同一套算法，候选用 mock 数据，不运行 libime。开发调试面板可通过 `?dev=1` 打开。本地运行方式见 [docs/development.md](docs/development.md)。
 
 ## 文档
 
@@ -98,7 +98,7 @@ gradle :app:assembleRelease
 | --- | --- |
 | `android/app` | 五层前端（data/layout/view/input/app）+ Android 适配 + 手册页 |
 | `android/engine` | libime JNI 封装、自学习/上文、宿主联调程序 |
-| `webdemo` | 官网与在线试用（视觉/交互 + mock 候选） |
+| `webdemo` | 官网与在线示例（视觉/交互 + mock 候选） |
 | `docs` | 几何、行为、引擎、开发与发布 |
 | `scripts` | 宿主端断言、预览渲染、数据生成、构建辅助 |
 

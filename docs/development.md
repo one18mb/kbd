@@ -76,9 +76,9 @@ java -Dfile.encoding=UTF-8 -cp /tmp/kbd-fixture com.kbd.ime.GeometryFixture \
 
 `scripts/preview.sh` 同时输出 `docs/preview/*.png`；README 只使用这些 Android 预览图。
 
-## 5. 官网与在线试用
+## 5. 官网与键盘示例
 
-`webdemo/` 是官网与可交互试用页，部署在：
+`webdemo/` 是官网与可交互键盘示例页，部署在：
 
 **https://one18mb.github.io/kbd/**
 
@@ -130,7 +130,7 @@ gh release create v1.2.1 /tmp/KBD-1.2.1-arm64-v8a.apk \
 ```text
 android/app      五层前端 + Android 适配 + MainActivity 手册页
 android/engine   libime JNI 封装、A+B、宿主联调
-webdemo          官网与在线试用（GitHub Pages）
+webdemo          官网与键盘示例（GitHub Pages）
 docs             geometry / behavior / engine / development
 scripts          构建、测试、数据生成、fixture
 ```

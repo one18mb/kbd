@@ -37,12 +37,13 @@ h2,
 h3,
 .brand,
 .btn,
-.chip,
-.eyebrow,
-code {
+.step-no {
   font-family: 'Unifont', monospace;
   -webkit-font-smoothing: none;
+  font-synthesis: none;
+  text-rendering: optimizeSpeed;
   font-weight: 400;
+  letter-spacing: 0;
 }
 
 a {
@@ -51,6 +52,7 @@ a {
 }
 
 code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.875em;
   background: var(--key-bg);
   padding: 0.1em 0.35em;
@@ -83,13 +85,14 @@ code {
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 24px;
+  font-size: 32px;
   line-height: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .brand-version {
-  font-size: 11px;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-size: 12px;
   color: var(--muted-text);
   letter-spacing: 0;
 }
@@ -125,7 +128,8 @@ code {
   border-radius: 0;
   background: transparent;
   color: var(--text);
-  font-size: 11px;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-size: 12px;
   line-height: 1;
   padding: 7px 9px;
   cursor: pointer;
@@ -162,7 +166,8 @@ code {
 
 .eyebrow {
   margin: 0;
-  font-size: 11px;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-size: 12px;
   letter-spacing: 0.12em;
   color: var(--muted-text);
   text-transform: uppercase;
@@ -170,9 +175,14 @@ code {
 
 h1 {
   margin: 14px 0 18px;
-  font-size: clamp(40px, 7vw, 64px);
-  line-height: 1.12;
-  letter-spacing: 0.01em;
+  font-size: 48px;
+  line-height: 1.25;
+}
+
+@media (min-width: 1000px) {
+  h1 {
+    font-size: 64px;
+  }
 }
 
 .lede {
@@ -198,7 +208,7 @@ h1 {
   border: 1px solid var(--text);
   background: transparent;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
@@ -327,8 +337,14 @@ h1 {
 
 h2 {
   margin: 8px 0 12px;
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.2;
+  font-size: 32px;
+  line-height: 1.25;
+}
+
+@media (min-width: 1000px) {
+  h2 {
+    font-size: 48px;
+  }
 }
 
 .section-lede {
@@ -363,8 +379,8 @@ h2 {
 
 .card h3 {
   margin: 0 0 8px;
-  font-size: 20px;
-  line-height: 1.3;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .card p {
@@ -451,10 +467,11 @@ h2 {
   color: var(--bg);
 }
 
-.scheme-card strong {
-  font-size: 20px;
+.scheme-card strong,
+.link-card strong {
+  font-size: 16px;
   font-weight: 400;
-  line-height: 1.25;
+  line-height: 1.5;
 }
 
 .scheme-card em {
@@ -481,14 +498,14 @@ h2 {
 
 .step-no {
   flex: 0 0 auto;
-  font-size: 24px;
+  font-size: 32px;
   line-height: 1;
   color: var(--muted-text);
 }
 
 .steps h3 {
   margin: 0 0 4px;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .steps p {
@@ -544,8 +561,9 @@ h2 {
 }
 
 .link-card strong {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 400;
+  line-height: 1.5;
 }
 
 .link-card span {
@@ -613,6 +631,7 @@ h2 {
 .site-footer .display {
   color: var(--text);
   font-size: 16px;
+  line-height: 1.5;
 }
 
 .footer-links {
@@ -651,7 +670,7 @@ body.dev .dev-panel {
 
 .dev-head h2 {
   margin: 4px 0 0;
-  font-size: 24px;
+  font-size: 32px;
 }
 
 .dev-grid {
@@ -773,7 +792,7 @@ body.dev .dev-panel {
   }
 
   .stage-wrap {
-    height: 430px;
+    height: 504px;
   }
 
   .demo-note {
@@ -782,10 +801,6 @@ body.dev .dev-panel {
 }
 
 @media (max-width: 520px) {
-  h1 {
-    font-size: 38px;
-  }
-
   .hero-actions .btn {
     flex: 1 1 auto;
   }
@@ -804,16 +819,8 @@ body.dev .dev-panel {
     padding: 12px;
   }
 
-  .scheme-card strong {
-    font-size: 17px;
-  }
-
   .site-footer {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .stage-wrap {
-    height: 400px;
   }
 }
