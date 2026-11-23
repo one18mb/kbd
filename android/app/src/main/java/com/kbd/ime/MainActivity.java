@@ -79,7 +79,7 @@ public final class MainActivity extends Activity {
                         + "展开 / 返回      组词时展开或收起候选\n"
                         + "换行             点按换行，长按收起键盘\n"
                         + "删除             点按退格，长按连发\n"
-                        + "候选             点按上屏；候选区滚轮滚动");
+                        + "候选             点按上屏；展开面板滚轮滚动");
         addSection(root, "COMMANDS", commands());
         addSection(root, "GESTURES",
                 "上滑 / 下滑      输入键上 / 下副字符\n"

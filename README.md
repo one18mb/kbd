@@ -1,27 +1,58 @@
 # KBD
 
-当前版本：**1.2**
+最新发布：**1.2**。本 README 描述 `main` 分支。
 
-一个面向中文的 Android 输入法，目标设备为 Android。键盘几何按屏幕宽高自适应，竖屏/横屏共用一套 libime 拼音引擎。
+面向中文的 Android 输入法。离线 libime 拼音引擎，键盘几何按屏幕宽高自适应，竖屏与横屏共用一套布局算法。
+
+## 截图
+
+| 竖屏 | 横屏 |
+| --- | --- |
+| ![portrait](docs/preview/00-idle.png) | ![landscape](docs/preview/10-landscape-letters.png) |
+
+| 3:4 自适应 | 方形屏 |
+| --- | --- |
+| ![768x1024](docs/preview/20-adaptive-768x1024.png) | ![800x800](docs/preview/21-adaptive-800x800.png) |
 
 ## 特性
 
 - **全拼 + 5 种 26 键双拼**：全拼、小鹤、自然码、智能ABC、中文之星、国标。默认全拼。
-- **精确像素自适应**：按屏幕 `W/H` 选择竖/横模式，键宽、字号、缝隙、边距按整数像素推进；720×1604 与 1604×720 精确复现基准设计。
-- **四色无边框视觉**：深/浅两套 4 色主题，`\sk` 切换。
-- **转义命令**：`\zh` 切换方案，`\sk` 切换皮肤，`\st` 切换简繁，`\sb` 调整底部安全区。
-- **输入增强**：A+B 用户自学习与上文预测（libime `HistoryBigram` + `PinyinContext`），跨输入框保留 10 字上文。
+- **整数像素自适应**：按窗口 `W/H` 选择竖/横模式，键宽、字号、缝隙、边距按整数像素推进。
+- **四色无边框视觉**：深/浅两套四色主题，`\sk` 切换。
+- **自学习与上文联想**：常用词与上一句上下文参与候选，跨输入框保留 10 字上文。
 - **标准键盘能力**：Ctrl/Alt/Shift 组合键、Tab/Esc、符号层翻页、长按锁定/连发。
+- **应用内手册**：桌面 KBD 图标打开 manpage 风格手册，含用法、命令、隐私、许可与赞赏码。
 
-## 截图
+## 安装
 
-| 竖屏 720×1604 | 横屏 1604×720 |
+从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.2-arm64-v8a.apk`）。
+
+- 最低 Android 8.0（API 26），仅 `arm64-v8a`。
+- 发布 APK 使用项目维护者的本地签名密钥；从源码自行构建的 APK 可以安装，但与官方 APK 不能互相覆盖升级。
+
+## 快速上手
+
+1. 系统设置 → 语言与输入法 → 启用 KBD。
+2. 将 KBD 设为当前输入法，在输入框中调出键盘。
+3. `中/英` 切换中英文；长按打开符号层。
+4. `空格` 组词时选首选，否则输入空格；长按进入 `\` 转义。
+5. `换行` 点按换行，长按收起键盘。
+6. 桌面打开 KBD 应用可查看完整手册。
+
+## 命令
+
+长按空格进入 `\`，输入命令后按空格执行：
+
+| 命令 | 作用 |
 | --- | --- |
-| ![portrait](docs/preview/00-idle.png) | ![landscape](docs/preview/10-landscape-letters.png) |
-
-| 768×1024 自适应 | 800×800 自适应 |
-| --- | --- |
-| ![768x1024](docs/preview/20-adaptive-768x1024.png) | ![800x800](docs/preview/21-adaptive-800x800.png) |
+| `\zh=quanpin` | 全拼（默认） |
+| `\zh=xiaohe` / `\zh=ziranma` | 小鹤 / 自然码 |
+| `\zh=abc` / `\zh=zhongwenzhixing` | 智能ABC / 中文之星 |
+| `\zh=gb` | 国标双拼 |
+| `\sk=dark` / `\sk=light` / `\sk=auto` | 暗色 / 亮色 / 跟随系统 |
+| `\st=s` / `\st=t` | 简体 / 繁体 |
+| `\sb=32` / `\sb=auto` | 底部安全区固定 / 跟随系统 |
+| `\n` / `\t` / `\u4f60` / `\\` | 换行 / 制表 / Unicode / 反斜杠 |
 
 ## 在线原型
 
@@ -29,27 +60,12 @@
 
 `webdemo/` 是纯静态的屏幕自适应原型，由 GitHub Actions 部署到 Pages。可调 `W/H/R/b`、主题、方案和尺寸预设；候选用 mock 数据，不运行 libime。本地运行方式见 [docs/development.md](docs/development.md)。
 
-## 安装
+## 文档
 
-从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.2-arm64-v8a.apk`），在系统设置中启用 KBD 输入法并切换为当前输入法。
-
-- 最低 Android 8.0（API 26），仅 `arm64-v8a`。
-- 发布 APK 使用项目维护者的本地签名密钥；从源码自行构建的 APK 可以正常安装，但与官方 APK 不能互相覆盖升级。
-
-## 使用
-
-桌面打开 **KBD** 应用可查看完整帮助（当前方案、命令、手势）。长按空格进入转义：
-
-| 命令 | 作用 |
-| --- | --- |
-| `\zh=quanpin` | 全拼 |
-| `\zh=xiaohe` | 小鹤双拼 |
-| `\zh=ziranma` / `\zh=abc` | 自然码 / 智能ABC |
-| `\zh=zhongwenzhixing` / `\zh=gb` | 中文之星 / 国标 |
-| `\sk=dark` / `\sk=light` / `\sk=auto` | 暗色 / 亮色 / 跟随系统 |
-| `\st=s` / `\st=t` | 简体 / 繁体 |
-| `\sb=32` / `\sb=auto` | 底部安全区固定 / 跟随系统 |
-| `\n` / `\t` / `\u4f60` / `\\` | 换行 / 制表 / Unicode / 反斜杠 |
+- [几何规则](docs/geometry.md)：布局开发者；模式、变量、进位、候选、短标签
+- [行为规则](docs/behavior.md)：交互开发者；按键、手势、转义、候选、符号层
+- [引擎](docs/engine.md)：引擎/JNI 开发者；libime、方案、自学习与上文、数据
+- [开发与发布](docs/development.md)：维护者；环境、构建、测试、Pages、发布
 
 ## 构建
 
@@ -71,18 +87,11 @@ gradle :app:assembleRelease
 
 | 目录 | 内容 |
 | --- | --- |
-| `android/app` | 五层前端（data/layout/view/input/app）+ Android 适配 |
+| `android/app` | 五层前端（data/layout/view/input/app）+ Android 适配 + 手册页 |
 | `android/engine` | libime JNI 封装、自学习/上文、宿主联调程序 |
 | `webdemo` | 屏幕自适应在线原型（视觉/交互 + mock 候选） |
 | `docs` | 几何、行为、引擎、开发与发布 |
 | `scripts` | 宿主端断言、预览渲染、数据生成、构建辅助 |
-
-## 文档
-
-- [几何规则](docs/geometry.md)：模式、变量、进位、横屏、候选、短标签
-- [行为规则](docs/behavior.md)：状态机、手势、命令、编辑流程
-- [引擎](docs/engine.md)：libime、方案、A+B、JNI
-- [开发与发布](docs/development.md)：环境、构建、测试、Pages、签名
 
 ## 许可证
 
