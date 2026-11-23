@@ -28,7 +28,7 @@ State = { String preedit; String[] candidates; }
 
 - `dataDir`：只读词典目录，包含 `sc.dict`、`sc.lm`。
 - `userDir`：可写目录，保存 `history.bigram`。
-- 版本字符串：`kbd-engine 1.2 / libime 1.1.17`。
+- 版本字符串：`kbd-engine 1.2.1 / libime 1.1.17`。
 
 ## 2. 生命周期
 

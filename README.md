@@ -1,6 +1,6 @@
 # KBD
 
-最新发布：**1.2**。本 README 描述 `main` 分支。
+最新发布：**1.2.1**。本 README 描述 `main` 分支。
 
 面向中文的 Android 输入法。离线 libime 拼音引擎，键盘几何按屏幕宽高自适应，竖屏与横屏共用一套布局算法。
 
@@ -25,7 +25,7 @@
 
 ## 安装
 
-从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.2-arm64-v8a.apk`）。
+从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.2.1-arm64-v8a.apk`）。
 
 - 最低 Android 8.0（API 26），仅 `arm64-v8a`。
 - 发布 APK 使用项目维护者的本地签名密钥；从源码自行构建的 APK 可以安装，但与官方 APK 不能互相覆盖升级。

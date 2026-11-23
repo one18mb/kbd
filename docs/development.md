@@ -115,12 +115,12 @@ $ANDROID_HOME/build-tools/34.0.0/aapt2 dump badging \
   android/app/build/outputs/apk/release/app-release.apk | head
 ```
 
-5. 提交版本变更，打 annotated tag（如 `v1.2`）并推送。
+5. 提交版本变更，打 annotated tag（如 `v1.2.1`）并推送。
 6. 重命名资产为 `KBD-<版本>-arm64-v8a.apk`，创建 GitHub Release：
 
 ```sh
-gh release create v1.2 /tmp/KBD-1.2-arm64-v8a.apk \
-  --title "KBD 1.2" --notes-file /tmp/release-notes.md
+gh release create v1.2.1 /tmp/KBD-1.2.1-arm64-v8a.apk \
+  --title "KBD 1.2.1" --notes-file /tmp/release-notes.md
 ```
 
 发布说明至少包含：版本号、用户可见变更、安装要求（Android 8.0+、arm64-v8a）、签名兼容性。
