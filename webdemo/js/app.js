@@ -18,7 +18,7 @@
     modeOverride: 'auto',
     orientation: 'portrait', // 由 layout 计算后写回，供 view/input 使用
     theme: 'auto',
-    lang: 'en',
+    lang: 'zh',
     layer: 'letters',
     symbolPage: 0,
     escape: false,
