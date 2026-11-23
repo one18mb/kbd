@@ -11,7 +11,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
-import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -216,23 +216,18 @@ public final class MainActivity extends Activity {
         line.setPadding(0, 0, 0, dp(16));
         root.addView(line);
 
-        TextView art = new TextView(this);
-        art.setText(grantsArt());
-        art.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        art.setTypeface(mono);
-        art.setTextColor(0xFF000000);
-        art.setBackgroundColor(0xFFFFFFFF);
-        art.setIncludeFontPadding(false);
-        art.setLineSpacing(0f, 1f);
-        art.setPadding(dp(8), dp(8), dp(8), dp(8));
-        art.setHorizontallyScrolling(true);
-        art.setTextIsSelectable(false);
+        ImageView qr = new ImageView(this);
+        qr.setImageResource(R.drawable.grants_qr);
+        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        qr.setBackgroundColor(0xFFFFFFFF);
+        qr.setContentDescription("微信赞赏码");
+        qr.setPadding(dp(8), dp(8), dp(8), dp(8));
 
-        HorizontalScrollView hsv = new HorizontalScrollView(this);
-        hsv.setBackgroundColor(bg);
-        hsv.setHorizontalScrollBarEnabled(false);
-        hsv.addView(art);
-        root.addView(hsv);
+        int size = Math.min(
+                getResources().getDisplayMetrics().widthPixels - dp(64), dp(280));
+        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(size, size);
+        qlp.gravity = Gravity.CENTER_HORIZONTAL;
+        root.addView(qr, qlp);
     }
 
     // ---------- 内容 ----------
@@ -282,31 +277,6 @@ public final class MainActivity extends Activity {
         } catch (Throwable t) {
             return 0;
         }
-    }
-
-    /**
-     * 赞赏码的字符版：由原图按 8px 网格二值化，▀/▄/█ 两行并一行。
-     * 微信赞赏码是装饰性码制，这里保留其外观，不保证通用扫码器可识别。
-     */
-    private static String grantsArt() {
-        return ""
-                + "              ▄  ▄  ▄  ▄\n"
-                + "            █ ▀█    █ ▄  █\n"
-                + "        ▄█ ▄ ▄ █ █▄ ▀▄▄ ▀▀▄██▄\n"
-                + "     ▄ █████▄ █  ▄██▀▄ ▄ ▄█████\n"
-                + "       ██▀▀ ▀▀▀█████▄█▄▀█ ▄▀▀██▀▀\n"
-                + "    ▀▀▄▄▄ ▄▄                ▀▀▄██▀\n"
-                + "   █▄▄▄ ▀▀▀▄              ▄█▀▀▄▄▄▄▀\n"
-                + "  ▄▄▄ ▄▄▀▀██              █▀▀▀█▄▄▄▄\n"
-                + "      ▄▀▄███              ██▄▀█▄▄\n"
-                + "  ▀▀ ▀▀ ████              ██▄▄▀▀▀▀▀\n"
-                + "   ▄   ▀▄▄▀▀              ▀ ▄▄▀▀▀▀▄\n"
-                + "    ▄▄▀ █▄▄ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▀▀  ▀▀▀▄\n"
-                + "      ▄██▄ ▀▄█▄▀████▀██ ▄\n"
-                + "     ▀ █████  █ █▄████▄█▄\n"
-                + "        ▀██▀▄▄ ▄ ▀▀  ▀█ ▄\n"
-                + "         ▀  █ ▄█ █    █  ▄\n"
-                + "              ▀  ▀  ▀  ▀";
     }
 
     private int dp(int value) {
