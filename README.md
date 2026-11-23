@@ -93,6 +93,8 @@ gradle :app:assembleRelease
 | `docs` | 几何、行为、引擎、开发与发布 |
 | `scripts` | 宿主端断言、预览渲染、数据生成、构建辅助 |
 
+如果 KBD 对你有用，欢迎 Star / Watch 关注版本更新。
+
 ## 许可证
 
 GPL-3.0-or-later。第三方组件与字体许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
