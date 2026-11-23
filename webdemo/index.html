@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KBD — 中文 Android 输入法</title>
-  <meta name="description" content="KBD 是离线中文 Android 输入法：全拼 + 5 种 26 键双拼，libime 本地引擎，按屏幕宽高整数像素自适应，深/浅四色主题，GPL-3.0 开源。">
-  <meta name="keywords" content="KBD,中文输入法,Android输入法,安卓输入法,拼音输入法,双拼,全拼,小鹤双拼,自然码,离线输入法">
+  <title>KBD — 给极客的中文 Android 输入法</title>
+  <meta name="description" content="KBD 是面向极客的中文 Android 输入法：完整标准键盘（Ctrl/Alt/Shift、Tab/Esc、方向键）+ 中文拼音，整数像素排版适合墨水屏；离线运行，不申请网络权限。">
+  <meta name="keywords" content="KBD,中文输入法,Android输入法,标准键盘,快捷键,墨水屏,e-ink,拼音输入法,双拼,离线输入法,隐私">
   <link rel="canonical" href="https://one18mb.github.io/kbd/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="KBD — 中文 Android 输入法">
-  <meta property="og:description" content="全拼 + 5 种 26 键双拼，离线 libime 引擎，整数像素自适应布局。">
+  <meta property="og:title" content="KBD — 中文输入，不牺牲键盘">
+  <meta property="og:description" content="完整标准键盘 + 墨水屏友好的整数像素排版；离线运行，不申请网络权限。">
   <meta property="og:url" content="https://one18mb.github.io/kbd/">
   <meta property="og:image" content="https://one18mb.github.io/kbd/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -24,7 +24,7 @@
     "name": "KBD",
     "applicationCategory": "UtilitiesApplication",
     "operatingSystem": "Android 8.0+",
-    "description": "离线中文 Android 输入法，全拼 + 5 种 26 键双拼，整数像素自适应布局。",
+    "description": "面向极客的中文 Android 输入法：完整标准键盘、墨水屏友好的整数像素排版、离线隐私。",
     "url": "https://one18mb.github.io/kbd/",
     "downloadUrl": "https://github.com/one18mb/kbd/releases/latest",
     "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -38,7 +38,7 @@
     <nav class="site-nav" aria-label="主导航">
       <a href="#demo">试用</a>
       <a href="#features">特性</a>
-      <a href="#schemes">双拼</a>
+      <a href="#audience">适合</a>
       <a href="#install">安装</a>
       <a href="#developers">文档</a>
       <a href="https://github.com/one18mb/kbd" target="_blank" rel="noopener">GitHub</a>
@@ -49,9 +49,9 @@
   <main id="top">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow display">离线 · 全拼 + 5 种 26 键双拼</p>
-        <h1 class="display">中文 Android<br>输入法</h1>
-        <p class="lede">KBD 用 libime 在本地完成拼音输入，键盘按屏幕宽高整数像素排版。没有网络权限，也不上传输入内容。</p>
+        <p class="eyebrow display">给极客的 Android 输入法 · 墨水屏友好</p>
+        <h1 class="display">中文输入，<br>不牺牲键盘</h1>
+        <p class="lede">KBD 把 Ctrl / Alt / Shift、Tab / Esc 和方向键带回中文输入；整数像素排版与四色高对比界面，适合墨水屏和静态显示。离线运行，不申请网络权限。</p>
         <div class="hero-actions">
           <a class="btn btn-primary display" id="downloadBtn" href="https://github.com/one18mb/kbd/releases/latest" target="_blank" rel="noopener">下载 APK</a>
           <a class="btn btn-ghost display" href="#demo">在线试用</a>
@@ -92,35 +92,63 @@
     <section class="section" id="features">
       <div class="section-head">
         <p class="eyebrow display">FEATURES</p>
-        <h2 class="display">为中文输入重做的键盘</h2>
+        <h2 class="display">先把标准键盘和墨水屏做对</h2>
         <p class="section-lede">不依赖云输入，不收集输入内容；布局和候选都在本机完成。</p>
       </div>
       <div class="card-grid">
         <article class="card">
-          <h3 class="display">整数像素自适应</h3>
-          <p>按窗口宽高与底部安全区计算模式和几何，键宽、字号、缝隙按整数推进；竖屏与横屏共用一套算法。</p>
+          <h3 class="display">完整标准键盘</h3>
+          <p>Ctrl / Alt / Shift、Tab / Esc、方向键和符号层都能组合；修饰键支持粘滞与锁定，适合终端、IDE 和远程桌面。</p>
+        </article>
+        <article class="card">
+          <h3 class="display">墨水屏友好</h3>
+          <p>整数像素网格、Unifont 点阵字和四色高对比，不依赖抗锯齿、渐变或半透明；在静态刷新设备上边界更清晰。</p>
+        </article>
+        <article class="card">
+          <h3 class="display">隐私安全</h3>
+          <p>不申请网络权限，不上传输入内容；词典、自学习词库和设置只保存在本机，卸载即清除。</p>
         </article>
         <article class="card">
           <h3 class="display">全拼 + 5 种双拼</h3>
-          <p>全拼、小鹤、自然码、智能ABC、中文之星、国标。长按空格后输入 <code>\zh=方案</code> 即可切换。</p>
+          <p>全拼、小鹤、自然码、智能ABC、中文之星、国标。默认全拼，长按空格输入 <code>\zh=方案</code> 切换。</p>
         </article>
         <article class="card">
-          <h3 class="display">离线与隐私</h3>
-          <p>词典与语言模型随应用内置，不申请网络权限，不上传输入内容；自学习词库只保存在本机。</p>
+          <h3 class="display">整数像素自适应</h3>
+          <p>按窗口宽高与底部安全区计算几何，竖屏与横屏共用一套算法；键宽、字号、缝隙按整数推进。</p>
         </article>
         <article class="card">
           <h3 class="display">自学习与上文</h3>
           <p>常用词和上一句上下文参与候选，跨输入框保留 10 字上文；切换应用不会丢上下文。</p>
         </article>
-        <article class="card">
-          <h3 class="display">四色主题</h3>
-          <p>深/浅两套四色皮肤，<code>\sk=dark|light|auto</code> 切换；无边框按键只比背景亮一档。</p>
+      </div>
+    </section>
+
+    <section class="section" id="audience">
+      <div class="section-head">
+        <p class="eyebrow display">AUDIENCE</p>
+        <h2 class="display">适合谁，不适合谁</h2>
+        <p class="section-lede">KBD 不是全能输入法；它优先服务一类明确的需求。</p>
+      </div>
+      <div class="audience-grid">
+        <article class="card audience-card">
+          <h3 class="display">适合</h3>
+          <ul>
+            <li>既要日常中文输入，也要标准键盘快捷键的极客</li>
+            <li>终端、IDE、远程桌面、SSH 等需要 Tab / Esc / Ctrl 的场景</li>
+            <li>墨水屏设备：阅读为主，但偶尔需要中文输入</li>
+            <li>在意离线、无网络权限和本地词库的用户</li>
+          </ul>
         </article>
-        <article class="card">
-          <h3 class="display">标准键盘能力</h3>
-          <p>Ctrl / Alt / Shift 组合键、Tab / Esc、方向键、符号层翻页、长按锁定与连发。</p>
+        <article class="card audience-card">
+          <h3 class="display">不适合</h3>
+          <ul>
+            <li>只习惯九宫格输入的用户（KBD 只提供 26 键布局）</li>
+            <li>依赖语音输入的用户（KBD 不提供语音）</li>
+            <li>追求花哨皮肤、动画或云输入的用户</li>
+          </ul>
         </article>
       </div>
+      <p class="section-note">墨水屏用户通常以阅读为主；KBD 不是阅读器输入方案，但在需要输入时，它的布局比常见输入法更可控。</p>
     </section>
 
     <section class="section" id="schemes">
