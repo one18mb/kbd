@@ -12,7 +12,7 @@
   var state = {
     // 屏幕输入：模式由 layout 计算，不再读系统方向。
     W: 720,
-    H: 1604,
+    H: 1000,
     b: 32,
     ratio: 0.75,
     modeOverride: 'auto',
@@ -826,6 +826,7 @@
         V.showToast('方案：' + D.schemes[state.scheme]);
         logEvent('方案：' + state.scheme);
         V.updateControlText(state);
+        syncSchemeCards();
       });
     }
 
@@ -958,6 +959,100 @@
     }
   }
 
+  // ---------- 官网：开发模式、方案卡片、下载 ----------
+
+  function setDevMode(on, updateUrl) {
+    document.body.classList.toggle('dev', on);
+    if (updateUrl) {
+      try {
+        var url = new URL(location.href);
+        if (on) url.searchParams.set('dev', '1');
+        else url.searchParams.delete('dev');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } catch (e) {}
+    }
+    V.fitStage();
+  }
+
+  function bindDevMode() {
+    var params;
+    try { params = new URLSearchParams(location.search); } catch (e) {}
+    setDevMode(!!(params && params.get('dev') === '1'), false);
+
+    var toggle = document.getElementById('devToggle');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        var on = !document.body.classList.contains('dev');
+        setDevMode(on, true);
+        if (on) {
+          var panel = document.getElementById('devPanel');
+          if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
+    var close = document.getElementById('devClose');
+    if (close) {
+      close.addEventListener('click', function () {
+        setDevMode(false, true);
+      });
+    }
+  }
+
+  function syncSchemeCards() {
+    var cards = document.querySelectorAll('[data-scheme]');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].classList.toggle('active', cards[i].dataset.scheme === state.scheme);
+    }
+  }
+
+  function bindSchemeCards() {
+    var cards = document.querySelectorAll('[data-scheme]');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].addEventListener('click', function () {
+        var code = this.dataset.scheme;
+        var sel = V.els.schemeSelect;
+        if (!sel) return;
+        sel.value = code;
+        sel.dispatchEvent(new Event('change'));
+        syncSchemeCards();
+      });
+    }
+    syncSchemeCards();
+  }
+
+  function setupDownload() {
+    var links = document.querySelectorAll('#downloadBtn, .download-link');
+    var meta = document.getElementById('downloadMeta');
+    var brand = document.getElementById('brandVersion');
+    if (!links.length) return;
+
+    fetch('https://api.github.com/repos/one18mb/kbd/releases/latest', {
+      headers: { Accept: 'application/vnd.github+json' }
+    }).then(function (res) {
+      if (!res.ok) throw new Error('http ' + res.status);
+      return res.json();
+    }).then(function (rel) {
+      var ver = (rel.tag_name || '').replace(/^v/, '');
+      var apk = null;
+      var assets = rel.assets || [];
+      for (var i = 0; i < assets.length; i++) {
+        if (/\.apk$/i.test(assets[i].name)) { apk = assets[i]; break; }
+      }
+      for (var j = 0; j < links.length; j++) {
+        var a = links[j];
+        a.href = apk ? apk.browser_download_url : rel.html_url;
+        if (ver) a.textContent = (a.id === 'downloadBtn' ? '下载 ' : '前往下载 ') + ver;
+      }
+      if (ver && brand) brand.textContent = ver;
+      if (ver && meta) {
+        meta.textContent = 'Android 8.0+ · arm64-v8a · ' +
+          (apk ? (apk.size / 1e6).toFixed(1) + ' MB · ' : '') + 'GPL-3.0';
+      }
+    }).catch(function () {
+      // 离线或限流时保留 releases/latest 链接
+    });
+  }
+
   function init() {
     V.init();
     V.setHandlers({
@@ -981,8 +1076,11 @@
     rebuildAll();
     if (state.composing) updateComposition();
     syncLayoutControls(findPresetLabel(state.W, state.H));
+    bindDevMode();
+    bindSchemeCards();
+    setupDownload();
     V.renderLog(logEntries, state.logOpen);
-    logEvent('KBD 自适应原型启动');
+    logEvent('KBD 官网启动');
   }
 
   init();

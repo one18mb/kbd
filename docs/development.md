@@ -76,9 +76,9 @@ java -Dfile.encoding=UTF-8 -cp /tmp/kbd-fixture com.kbd.ime.GeometryFixture \
 
 `scripts/preview.sh` 同时输出 `docs/preview/*.png`；README 只使用这些 Android 预览图。
 
-## 5. 在线原型
+## 5. 官网与在线试用
 
-`webdemo/` 是纯静态原型，部署在：
+`webdemo/` 是官网与可交互试用页，部署在：
 
 **https://one18mb.github.io/kbd/**
 
@@ -101,7 +101,7 @@ URL 参数可固定状态：
 ?w=1604&h=720&r=0.75&b=32&theme=dark&scheme=xiaohe&mode=landscape&demo=nihao
 ```
 
-`mode` 可取 `auto` / `portrait` / `landscape`。webdemo 只做视觉/交互与 mock 候选，不运行 libime。
+`mode` 可取 `auto` / `portrait` / `landscape`；`?dev=1` 打开页面底部的开发调试面板（W/H/R/b、预设、事件日志）。webdemo 只做视觉/交互与 mock 候选，不运行 libime。
 
 ## 6. 发布
 
@@ -130,7 +130,7 @@ gh release create v1.2.1 /tmp/KBD-1.2.1-arm64-v8a.apk \
 ```text
 android/app      五层前端 + Android 适配 + MainActivity 手册页
 android/engine   libime JNI 封装、A+B、宿主联调
-webdemo          GitHub Pages 在线原型
+webdemo          官网与在线试用（GitHub Pages）
 docs             geometry / behavior / engine / development
 scripts          构建、测试、数据生成、fixture
 ```
