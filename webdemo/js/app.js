@@ -1188,7 +1188,7 @@
     bindSchemeCards();
     setupDownload();
     V.renderLog(logEntries, state.logOpen);
-    logEvent('KBD 官网启动');
+    logEvent('键盘输入法 官网启动');
   }
 
   init();

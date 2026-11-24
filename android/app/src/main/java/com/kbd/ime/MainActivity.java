@@ -58,17 +58,17 @@ public final class MainActivity extends Activity {
         scroll.addView(root);
 
         addHeader(root);
-        addSection(root, "NAME", "kbd - 面向中文的 Android 输入法");
+        addSection(root, "NAME", "键盘输入法（KBD） - 面向中文的 Android 输入法");
         addSection(root, "SYNOPSIS",
-                "kbd\n"
+                "键盘输入法\n"
                         + "无命令行参数。长按空格进入 \\，输入命令后按空格执行。");
         addSection(root, "DESCRIPTION",
-                "KBD 是离线中文输入法。键盘按屏幕宽高自适应，竖屏与横屏共用"
+                "键盘输入法（KBD）是离线中文输入法。键盘按屏幕宽高自适应，竖屏与横屏共用"
                         + "一套 libime 拼音引擎；默认全拼，另提供小鹤、自然码、"
                         + "智能ABC、中文之星、国标 5 种 26 键双拼。");
         addSection(root, "SETUP",
-                "1. 系统设置 → 语言与输入法 → 启用 KBD\n"
-                        + "2. 将 KBD 设为当前输入法\n"
+                "1. 系统设置 → 语言与输入法 → 启用键盘输入法\n"
+                        + "2. 将键盘输入法设为当前输入法\n"
                         + "3. 在输入框中调出键盘\n"
                         + "如果键盘没有出现，回到第 1 步检查是否启用。");
         addSection(root, "USAGE",
@@ -92,7 +92,7 @@ public final class MainActivity extends Activity {
         addSection(root, "SEE ALSO",
                 "源代码    https://github.com/one18mb/kbd\n"
                         + "问题反馈  https://github.com/one18mb/kbd/issues\n"
-                        + "在线原型  https://one18mb.github.io/kbd/");
+                        + "在线示例  https://one18mb.github.io/kbd/");
         addSection(root, "LICENSE",
                 "GPL-3.0-or-later\n"
                         + "Copyright (C) 2026 one18mb and KBD contributors.\n"
@@ -138,7 +138,7 @@ public final class MainActivity extends Activity {
         root.addView(row);
 
         TextView title = new TextView(this);
-        title.setText("KBD(1)");
+        title.setText("键盘输入法(1)");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
         title.setTypeface(mono);
         title.setTextColor(text);
@@ -156,7 +156,7 @@ public final class MainActivity extends Activity {
         row.addView(version);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("KBD 输入法手册");
+        subtitle.setText("键盘输入法手册");
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         subtitle.setTypeface(mono);
         subtitle.setTextColor(sub);
