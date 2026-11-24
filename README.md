@@ -1,6 +1,6 @@
 # KBD（键盘输入法）
 
-最新发布：**1.3**。本 README 描述 `main` 分支。
+最新发布：**1.4**。本 README 描述 `main` 分支。
 
 键盘输入法（KBD）是面向极客的中文 Android（安卓）输入法：标准键盘 + 墨水屏友好的整数像素排版。离线运行，不申请网络权限。
 
@@ -34,7 +34,7 @@
 
 ## 安装
 
-从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.3-arm64-v8a.apk`）。
+从 GitHub Releases 下载 `KBD-<版本>-arm64-v8a.apk`（如 `KBD-1.4-arm64-v8a.apk`）。
 
 - 最低 Android 8.0（API 26），仅 `arm64-v8a`。
 - 发布 APK 使用项目维护者的本地签名密钥；从源码自行构建的 APK 可以安装，但与官方 APK 不能互相覆盖升级。
